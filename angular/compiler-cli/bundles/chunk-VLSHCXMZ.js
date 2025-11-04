@@ -1,7 +1,7 @@
 
-import {createRequire as __cjsCompatRequire} from 'module';
-const require = __cjsCompatRequire(import.meta.url);
-
+      import {createRequire as __cjsCompatRequire} from 'module';
+      const require = __cjsCompatRequire(import.meta.url);
+    
 import {
   Context,
   ExpressionTranslatorVisitor
@@ -14361,3 +14361,7559 @@ var TcbUnclaimedInputsOp = class extends TcbOp {
     return null;
   }
 };
+var TcbDirectiveOutputsOp = class extends TcbOp {
+  tcb;
+  scope;
+  node;
+  inputs;
+  outputs;
+  dir;
+  constructor(tcb, scope, node, inputs, outputs, dir) {
+    super();
+    this.tcb = tcb;
+    this.scope = scope;
+    this.node = node;
+    this.inputs = inputs;
+    this.outputs = outputs;
+    this.dir = dir;
+  }
+  get optional() {
+    return false;
+  }
+  execute() {
+    let dirId = null;
+    const outputs = this.dir.outputs;
+    for (const output of this.outputs) {
+      if (output.type === ParsedEventType2.LegacyAnimation || !outputs.hasBindingPropertyName(output.name)) {
+        continue;
+      }
+      if (this.tcb.env.config.checkTypeOfOutputEvents && this.inputs !== null && output.name.endsWith("Change")) {
+        const inputName = output.name.slice(0, -6);
+        checkSplitTwoWayBinding(inputName, output, this.inputs, this.tcb);
+      }
+      const field = outputs.getByBindingPropertyName(output.name)[0].classPropertyName;
+      if (dirId === null) {
+        dirId = this.scope.resolve(this.node, this.dir);
+      }
+      const outputField = ts60.factory.createElementAccessExpression(dirId, ts60.factory.createStringLiteral(field));
+      addParseSpanInfo(outputField, output.keySpan);
+      if (this.tcb.env.config.checkTypeOfOutputEvents) {
+        const handler = tcbCreateEventHandler(
+          output,
+          this.tcb,
+          this.scope,
+          0
+          /* EventParamType.Infer */
+        );
+        const subscribeFn = ts60.factory.createPropertyAccessExpression(outputField, "subscribe");
+        const call = ts60.factory.createCallExpression(
+          subscribeFn,
+          /* typeArguments */
+          void 0,
+          [
+            handler
+          ]
+        );
+        addParseSpanInfo(call, output.sourceSpan);
+        this.scope.addStatement(ts60.factory.createExpressionStatement(call));
+      } else {
+        this.scope.addStatement(ts60.factory.createExpressionStatement(outputField));
+        const handler = tcbCreateEventHandler(
+          output,
+          this.tcb,
+          this.scope,
+          1
+          /* EventParamType.Any */
+        );
+        this.scope.addStatement(ts60.factory.createExpressionStatement(handler));
+      }
+    }
+    return null;
+  }
+};
+var TcbUnclaimedOutputsOp = class extends TcbOp {
+  tcb;
+  scope;
+  target;
+  outputs;
+  inputs;
+  claimedOutputs;
+  constructor(tcb, scope, target, outputs, inputs, claimedOutputs) {
+    super();
+    this.tcb = tcb;
+    this.scope = scope;
+    this.target = target;
+    this.outputs = outputs;
+    this.inputs = inputs;
+    this.claimedOutputs = claimedOutputs;
+  }
+  get optional() {
+    return false;
+  }
+  execute() {
+    let elId = null;
+    for (const output of this.outputs) {
+      if (this.claimedOutputs?.has(output.name)) {
+        continue;
+      }
+      if (this.tcb.env.config.checkTypeOfOutputEvents && this.inputs !== null && output.name.endsWith("Change")) {
+        const inputName = output.name.slice(0, -6);
+        if (checkSplitTwoWayBinding(inputName, output, this.inputs, this.tcb)) {
+          continue;
+        }
+      }
+      if (output.type === ParsedEventType2.LegacyAnimation) {
+        const eventType = this.tcb.env.config.checkTypeOfAnimationEvents ? this.tcb.env.referenceExternalType("@angular/animations", "AnimationEvent") : 1;
+        const handler = tcbCreateEventHandler(output, this.tcb, this.scope, eventType);
+        this.scope.addStatement(ts60.factory.createExpressionStatement(handler));
+      } else if (output.type === ParsedEventType2.Animation) {
+        const eventType = this.tcb.env.referenceExternalType("@angular/core", "AnimationCallbackEvent");
+        const handler = tcbCreateEventHandler(output, this.tcb, this.scope, eventType);
+        this.scope.addStatement(ts60.factory.createExpressionStatement(handler));
+      } else if (this.tcb.env.config.checkTypeOfDomEvents) {
+        let target;
+        let domEventAssertion;
+        if (output.target === "window" || output.target === "document") {
+          target = ts60.factory.createIdentifier(output.target);
+        } else if (elId === null) {
+          target = elId = this.scope.resolve(this.target);
+        } else {
+          target = elId;
+        }
+        if (this.target instanceof TmplAstElement2 && this.target.isVoid && ts60.isIdentifier(target) && this.tcb.env.config.allowDomEventAssertion) {
+          domEventAssertion = ts60.factory.createCallExpression(this.tcb.env.referenceExternalSymbol("@angular/core", "\u0275assertType"), [ts60.factory.createTypeQueryNode(target)], [
+            ts60.factory.createPropertyAccessExpression(ts60.factory.createIdentifier(EVENT_PARAMETER), "target")
+          ]);
+        }
+        const propertyAccess = ts60.factory.createPropertyAccessExpression(target, "addEventListener");
+        addParseSpanInfo(propertyAccess, output.keySpan);
+        const handler = tcbCreateEventHandler(output, this.tcb, this.scope, 0, domEventAssertion);
+        const call = ts60.factory.createCallExpression(
+          /* expression */
+          propertyAccess,
+          /* typeArguments */
+          void 0,
+          /* arguments */
+          [ts60.factory.createStringLiteral(output.name), handler]
+        );
+        addParseSpanInfo(call, output.sourceSpan);
+        this.scope.addStatement(ts60.factory.createExpressionStatement(call));
+      } else {
+        const handler = tcbCreateEventHandler(
+          output,
+          this.tcb,
+          this.scope,
+          1
+          /* EventParamType.Any */
+        );
+        this.scope.addStatement(ts60.factory.createExpressionStatement(handler));
+      }
+    }
+    return null;
+  }
+};
+var TcbComponentContextCompletionOp = class extends TcbOp {
+  scope;
+  constructor(scope) {
+    super();
+    this.scope = scope;
+  }
+  optional = false;
+  execute() {
+    const ctx = ts60.factory.createThis();
+    const ctxDot = ts60.factory.createPropertyAccessExpression(ctx, "");
+    markIgnoreDiagnostics(ctxDot);
+    addExpressionIdentifier(ctxDot, ExpressionIdentifier.COMPONENT_COMPLETION);
+    this.scope.addStatement(ts60.factory.createExpressionStatement(ctxDot));
+    return null;
+  }
+};
+var TcbBlockVariableOp = class extends TcbOp {
+  tcb;
+  scope;
+  initializer;
+  variable;
+  constructor(tcb, scope, initializer, variable) {
+    super();
+    this.tcb = tcb;
+    this.scope = scope;
+    this.initializer = initializer;
+    this.variable = variable;
+  }
+  get optional() {
+    return false;
+  }
+  execute() {
+    const id = this.tcb.allocateId();
+    addParseSpanInfo(id, this.variable.keySpan);
+    const variable = tsCreateVariable(id, wrapForTypeChecker(this.initializer));
+    addParseSpanInfo(variable.declarationList.declarations[0], this.variable.sourceSpan);
+    this.scope.addStatement(variable);
+    return id;
+  }
+};
+var TcbBlockImplicitVariableOp = class extends TcbOp {
+  tcb;
+  scope;
+  type;
+  variable;
+  constructor(tcb, scope, type, variable) {
+    super();
+    this.tcb = tcb;
+    this.scope = scope;
+    this.type = type;
+    this.variable = variable;
+  }
+  optional = true;
+  execute() {
+    const id = this.tcb.allocateId();
+    addParseSpanInfo(id, this.variable.keySpan);
+    const variable = tsDeclareVariable(id, this.type);
+    addParseSpanInfo(variable.declarationList.declarations[0], this.variable.sourceSpan);
+    this.scope.addStatement(variable);
+    return id;
+  }
+};
+var TcbIfOp = class extends TcbOp {
+  tcb;
+  scope;
+  block;
+  expressionScopes = /* @__PURE__ */ new Map();
+  constructor(tcb, scope, block) {
+    super();
+    this.tcb = tcb;
+    this.scope = scope;
+    this.block = block;
+  }
+  get optional() {
+    return false;
+  }
+  execute() {
+    const root = this.generateBranch(0);
+    root && this.scope.addStatement(root);
+    return null;
+  }
+  generateBranch(index) {
+    const branch = this.block.branches[index];
+    if (!branch) {
+      return void 0;
+    }
+    if (branch.expression === null) {
+      const branchScope = this.getBranchScope(this.scope, branch, index);
+      return ts60.factory.createBlock(branchScope.render());
+    }
+    const outerScope = Scope.forNodes(this.tcb, this.scope, branch, [], null);
+    outerScope.render().forEach((stmt) => this.scope.addStatement(stmt));
+    this.expressionScopes.set(branch, outerScope);
+    let expression = tcbExpression(branch.expression, this.tcb, this.scope);
+    if (branch.expressionAlias !== null) {
+      expression = ts60.factory.createBinaryExpression(ts60.factory.createParenthesizedExpression(expression), ts60.SyntaxKind.AmpersandAmpersandToken, outerScope.resolve(branch.expressionAlias));
+    }
+    const bodyScope = this.getBranchScope(outerScope, branch, index);
+    return ts60.factory.createIfStatement(expression, ts60.factory.createBlock(bodyScope.render()), this.generateBranch(index + 1));
+  }
+  getBranchScope(parentScope, branch, index) {
+    const checkBody = this.tcb.env.config.checkControlFlowBodies;
+    return Scope.forNodes(this.tcb, parentScope, null, checkBody ? branch.children : [], checkBody ? this.generateBranchGuard(index) : null);
+  }
+  generateBranchGuard(index) {
+    let guard = null;
+    for (let i = 0; i <= index; i++) {
+      const branch = this.block.branches[i];
+      if (branch.expression === null) {
+        continue;
+      }
+      if (!this.expressionScopes.has(branch)) {
+        throw new Error(`Could not determine expression scope of branch at index ${i}`);
+      }
+      const expressionScope = this.expressionScopes.get(branch);
+      let expression;
+      expression = tcbExpression(branch.expression, this.tcb, expressionScope);
+      if (branch.expressionAlias !== null) {
+        expression = ts60.factory.createBinaryExpression(ts60.factory.createParenthesizedExpression(expression), ts60.SyntaxKind.AmpersandAmpersandToken, expressionScope.resolve(branch.expressionAlias));
+      }
+      markIgnoreDiagnostics(expression);
+      const comparisonExpression = i === index ? expression : ts60.factory.createPrefixUnaryExpression(ts60.SyntaxKind.ExclamationToken, ts60.factory.createParenthesizedExpression(expression));
+      guard = guard === null ? comparisonExpression : ts60.factory.createBinaryExpression(guard, ts60.SyntaxKind.AmpersandAmpersandToken, comparisonExpression);
+    }
+    return guard;
+  }
+};
+var TcbSwitchOp = class extends TcbOp {
+  tcb;
+  scope;
+  block;
+  constructor(tcb, scope, block) {
+    super();
+    this.tcb = tcb;
+    this.scope = scope;
+    this.block = block;
+  }
+  get optional() {
+    return false;
+  }
+  execute() {
+    const switchExpression = tcbExpression(this.block.expression, this.tcb, this.scope);
+    const clauses = this.block.cases.map((current) => {
+      const checkBody = this.tcb.env.config.checkControlFlowBodies;
+      const clauseScope = Scope.forNodes(this.tcb, this.scope, null, checkBody ? current.children : [], checkBody ? this.generateGuard(current, switchExpression) : null);
+      const statements = [...clauseScope.render(), ts60.factory.createBreakStatement()];
+      return current.expression === null ? ts60.factory.createDefaultClause(statements) : ts60.factory.createCaseClause(tcbExpression(current.expression, this.tcb, clauseScope), statements);
+    });
+    this.scope.addStatement(ts60.factory.createSwitchStatement(switchExpression, ts60.factory.createCaseBlock(clauses)));
+    return null;
+  }
+  generateGuard(node, switchValue) {
+    if (node.expression !== null) {
+      const expression = tcbExpression(node.expression, this.tcb, this.scope);
+      markIgnoreDiagnostics(expression);
+      return ts60.factory.createBinaryExpression(switchValue, ts60.SyntaxKind.EqualsEqualsEqualsToken, expression);
+    }
+    let guard = null;
+    for (const current of this.block.cases) {
+      if (current.expression === null) {
+        continue;
+      }
+      const expression = tcbExpression(current.expression, this.tcb, this.scope);
+      markIgnoreDiagnostics(expression);
+      const comparison = ts60.factory.createBinaryExpression(switchValue, ts60.SyntaxKind.ExclamationEqualsEqualsToken, expression);
+      if (guard === null) {
+        guard = comparison;
+      } else {
+        guard = ts60.factory.createBinaryExpression(guard, ts60.SyntaxKind.AmpersandAmpersandToken, comparison);
+      }
+    }
+    return guard;
+  }
+};
+var TcbForOfOp = class extends TcbOp {
+  tcb;
+  scope;
+  block;
+  constructor(tcb, scope, block) {
+    super();
+    this.tcb = tcb;
+    this.scope = scope;
+    this.block = block;
+  }
+  get optional() {
+    return false;
+  }
+  execute() {
+    const loopScope = Scope.forNodes(this.tcb, this.scope, this.block, this.tcb.env.config.checkControlFlowBodies ? this.block.children : [], null);
+    const initializerId = loopScope.resolve(this.block.item);
+    if (!ts60.isIdentifier(initializerId)) {
+      throw new Error(`Could not resolve for loop variable ${this.block.item.name} to an identifier`);
+    }
+    const initializer = ts60.factory.createVariableDeclarationList([ts60.factory.createVariableDeclaration(initializerId)], ts60.NodeFlags.Const);
+    addParseSpanInfo(initializer, this.block.item.keySpan);
+    const expression = ts60.factory.createNonNullExpression(tcbExpression(this.block.expression, this.tcb, this.scope));
+    const trackTranslator = new TcbForLoopTrackTranslator(this.tcb, loopScope, this.block);
+    const trackExpression = trackTranslator.translate(this.block.trackBy);
+    const statements = [
+      ...loopScope.render(),
+      ts60.factory.createExpressionStatement(trackExpression)
+    ];
+    this.scope.addStatement(ts60.factory.createForOfStatement(void 0, initializer, expression, ts60.factory.createBlock(statements)));
+    return null;
+  }
+};
+var Context2 = class {
+  env;
+  domSchemaChecker;
+  oobRecorder;
+  id;
+  boundTarget;
+  pipes;
+  schemas;
+  hostIsStandalone;
+  hostPreserveWhitespaces;
+  nextId = 1;
+  constructor(env, domSchemaChecker, oobRecorder, id, boundTarget, pipes, schemas, hostIsStandalone, hostPreserveWhitespaces) {
+    this.env = env;
+    this.domSchemaChecker = domSchemaChecker;
+    this.oobRecorder = oobRecorder;
+    this.id = id;
+    this.boundTarget = boundTarget;
+    this.pipes = pipes;
+    this.schemas = schemas;
+    this.hostIsStandalone = hostIsStandalone;
+    this.hostPreserveWhitespaces = hostPreserveWhitespaces;
+  }
+  /**
+   * Allocate a new variable name for use within the `Context`.
+   *
+   * Currently this uses a monotonically increasing counter, but in the future the variable name
+   * might change depending on the type of data being stored.
+   */
+  allocateId() {
+    return ts60.factory.createIdentifier(`_t${this.nextId++}`);
+  }
+  getPipeByName(name) {
+    if (this.pipes === null || !this.pipes.has(name)) {
+      return null;
+    }
+    return this.pipes.get(name);
+  }
+};
+var Scope = class _Scope {
+  tcb;
+  parent;
+  guard;
+  /**
+   * A queue of operations which need to be performed to generate the TCB code for this scope.
+   *
+   * This array can contain either a `TcbOp` which has yet to be executed, or a `ts.Expression|null`
+   * representing the memoized result of executing the operation. As operations are executed, their
+   * results are written into the `opQueue`, overwriting the original operation.
+   *
+   * If an operation is in the process of being executed, it is temporarily overwritten here with
+   * `INFER_TYPE_FOR_CIRCULAR_OP_EXPR`. This way, if a cycle is encountered where an operation
+   * depends transitively on its own result, the inner operation will infer the least narrow type
+   * that fits instead. This has the same semantics as TypeScript itself when types are referenced
+   * circularly.
+   */
+  opQueue = [];
+  /**
+   * A map of `TmplAstElement`s to the index of their `TcbElementOp` in the `opQueue`
+   */
+  elementOpMap = /* @__PURE__ */ new Map();
+  /**
+   * A map of `TmplAstHostElement`s to the index of their `TcbHostElementOp` in the `opQueue`
+   */
+  hostElementOpMap = /* @__PURE__ */ new Map();
+  /**
+   * A map of `TmplAstComponent`s to the index of their `TcbComponentNodeOp` in the `opQueue`
+   */
+  componentNodeOpMap = /* @__PURE__ */ new Map();
+  /**
+   * A map of maps which tracks the index of `TcbDirectiveCtorOp`s in the `opQueue` for each
+   * directive on a `TmplAstElement` or `TmplAstTemplate` node.
+   */
+  directiveOpMap = /* @__PURE__ */ new Map();
+  /**
+   * A map of `TmplAstReference`s to the index of their `TcbReferenceOp` in the `opQueue`
+   */
+  referenceOpMap = /* @__PURE__ */ new Map();
+  /**
+   * Map of immediately nested <ng-template>s (within this `Scope`) represented by `TmplAstTemplate`
+   * nodes to the index of their `TcbTemplateContextOp`s in the `opQueue`.
+   */
+  templateCtxOpMap = /* @__PURE__ */ new Map();
+  /**
+   * Map of variables declared on the template that created this `Scope` (represented by
+   * `TmplAstVariable` nodes) to the index of their `TcbVariableOp`s in the `opQueue`, or to
+   * pre-resolved variable identifiers.
+   */
+  varMap = /* @__PURE__ */ new Map();
+  /**
+   * A map of the names of `TmplAstLetDeclaration`s to the index of their op in the `opQueue`.
+   *
+   * Assumes that there won't be duplicated `@let` declarations within the same scope.
+   */
+  letDeclOpMap = /* @__PURE__ */ new Map();
+  /**
+   * Statements for this template.
+   *
+   * Executing the `TcbOp`s in the `opQueue` populates this array.
+   */
+  statements = [];
+  /**
+   * Gets names of the for loop context variables and their types.
+   */
+  static getForLoopContextVariableTypes() {
+    return /* @__PURE__ */ new Map([
+      ["$first", ts60.SyntaxKind.BooleanKeyword],
+      ["$last", ts60.SyntaxKind.BooleanKeyword],
+      ["$even", ts60.SyntaxKind.BooleanKeyword],
+      ["$odd", ts60.SyntaxKind.BooleanKeyword],
+      ["$index", ts60.SyntaxKind.NumberKeyword],
+      ["$count", ts60.SyntaxKind.NumberKeyword]
+    ]);
+  }
+  constructor(tcb, parent = null, guard = null) {
+    this.tcb = tcb;
+    this.parent = parent;
+    this.guard = guard;
+  }
+  /**
+   * Constructs a `Scope` given either a `TmplAstTemplate` or a list of `TmplAstNode`s.
+   *
+   * @param tcb the overall context of TCB generation.
+   * @param parentScope the `Scope` of the parent template (if any) or `null` if this is the root
+   * `Scope`.
+   * @param scopedNode Node that provides the scope around the child nodes (e.g. a
+   * `TmplAstTemplate` node exposing variables to its children).
+   * @param children Child nodes that should be appended to the TCB.
+   * @param guard an expression that is applied to this scope for type narrowing purposes.
+   */
+  static forNodes(tcb, parentScope, scopedNode, children, guard) {
+    const scope = new _Scope(tcb, parentScope, guard);
+    if (parentScope === null && tcb.env.config.enableTemplateTypeChecker) {
+      scope.opQueue.push(new TcbComponentContextCompletionOp(scope));
+    }
+    if (scopedNode instanceof TmplAstTemplate) {
+      const varMap = /* @__PURE__ */ new Map();
+      for (const v of scopedNode.variables) {
+        if (!varMap.has(v.name)) {
+          varMap.set(v.name, v);
+        } else {
+          const firstDecl = varMap.get(v.name);
+          tcb.oobRecorder.duplicateTemplateVar(tcb.id, v, firstDecl);
+        }
+        _Scope.registerVariable(scope, v, new TcbTemplateVariableOp(tcb, scope, scopedNode, v));
+      }
+    } else if (scopedNode instanceof TmplAstIfBlockBranch) {
+      const { expression, expressionAlias } = scopedNode;
+      if (expression !== null && expressionAlias !== null) {
+        _Scope.registerVariable(scope, expressionAlias, new TcbBlockVariableOp(tcb, scope, tcbExpression(expression, tcb, scope), expressionAlias));
+      }
+    } else if (scopedNode instanceof TmplAstForLoopBlock) {
+      const loopInitializer = tcb.allocateId();
+      addParseSpanInfo(loopInitializer, scopedNode.item.sourceSpan);
+      scope.varMap.set(scopedNode.item, loopInitializer);
+      const forLoopContextVariableTypes = _Scope.getForLoopContextVariableTypes();
+      for (const variable of scopedNode.contextVariables) {
+        if (!forLoopContextVariableTypes.has(variable.value)) {
+          throw new Error(`Unrecognized for loop context variable ${variable.name}`);
+        }
+        const type = ts60.factory.createKeywordTypeNode(forLoopContextVariableTypes.get(variable.value));
+        _Scope.registerVariable(scope, variable, new TcbBlockImplicitVariableOp(tcb, scope, type, variable));
+      }
+    } else if (scopedNode instanceof TmplAstHostElement2) {
+      scope.appendNode(scopedNode);
+    }
+    if (children !== null) {
+      for (const node of children) {
+        scope.appendNode(node);
+      }
+    }
+    for (const variable of scope.varMap.keys()) {
+      _Scope.checkConflictingLet(scope, variable);
+    }
+    for (const ref of scope.referenceOpMap.keys()) {
+      _Scope.checkConflictingLet(scope, ref);
+    }
+    return scope;
+  }
+  /** Registers a local variable with a scope. */
+  static registerVariable(scope, variable, op) {
+    const opIndex = scope.opQueue.push(op) - 1;
+    scope.varMap.set(variable, opIndex);
+  }
+  /**
+   * Look up a `ts.Expression` representing the value of some operation in the current `Scope`,
+   * including any parent scope(s). This method always returns a mutable clone of the
+   * `ts.Expression` with the comments cleared.
+   *
+   * @param node a `TmplAstNode` of the operation in question. The lookup performed will depend on
+   * the type of this node:
+   *
+   * Assuming `directive` is not present, then `resolve` will return:
+   *
+   * * `TmplAstElement` - retrieve the expression for the element DOM node
+   * * `TmplAstTemplate` - retrieve the template context variable
+   * * `TmplAstVariable` - retrieve a template let- variable
+   * * `TmplAstLetDeclaration` - retrieve a template `@let` declaration
+   * * `TmplAstReference` - retrieve variable created for the local ref
+   *
+   * @param directive if present, a directive type on a `TmplAstElement` or `TmplAstTemplate` to
+   * look up instead of the default for an element or template node.
+   */
+  resolve(node, directive) {
+    const res = this.resolveLocal(node, directive);
+    if (res !== null) {
+      let clone;
+      if (ts60.isIdentifier(res)) {
+        clone = ts60.factory.createIdentifier(res.text);
+      } else if (ts60.isNonNullExpression(res)) {
+        clone = ts60.factory.createNonNullExpression(res.expression);
+      } else {
+        throw new Error(`Could not resolve ${node} to an Identifier or a NonNullExpression`);
+      }
+      ts60.setOriginalNode(clone, res);
+      clone.parent = clone.parent;
+      return ts60.setSyntheticTrailingComments(clone, []);
+    } else if (this.parent !== null) {
+      return this.parent.resolve(node, directive);
+    } else {
+      throw new Error(`Could not resolve ${node} / ${directive}`);
+    }
+  }
+  /**
+   * Add a statement to this scope.
+   */
+  addStatement(stmt) {
+    this.statements.push(stmt);
+  }
+  /**
+   * Get the statements.
+   */
+  render() {
+    for (let i = 0; i < this.opQueue.length; i++) {
+      const skipOptional = !this.tcb.env.config.enableTemplateTypeChecker;
+      this.executeOp(i, skipOptional);
+    }
+    return this.statements;
+  }
+  /**
+   * Returns an expression of all template guards that apply to this scope, including those of
+   * parent scopes. If no guards have been applied, null is returned.
+   */
+  guards() {
+    let parentGuards = null;
+    if (this.parent !== null) {
+      parentGuards = this.parent.guards();
+    }
+    if (this.guard === null) {
+      return parentGuards;
+    } else if (parentGuards === null) {
+      return this.guard;
+    } else {
+      return ts60.factory.createBinaryExpression(parentGuards, ts60.SyntaxKind.AmpersandAmpersandToken, this.guard);
+    }
+  }
+  /** Returns whether a template symbol is defined locally within the current scope. */
+  isLocal(node) {
+    if (node instanceof TmplAstVariable) {
+      return this.varMap.has(node);
+    }
+    if (node instanceof TmplAstLetDeclaration2) {
+      return this.letDeclOpMap.has(node.name);
+    }
+    return this.referenceOpMap.has(node);
+  }
+  resolveLocal(ref, directive) {
+    if (ref instanceof TmplAstReference2 && this.referenceOpMap.has(ref)) {
+      return this.resolveOp(this.referenceOpMap.get(ref));
+    } else if (ref instanceof TmplAstLetDeclaration2 && this.letDeclOpMap.has(ref.name)) {
+      return this.resolveOp(this.letDeclOpMap.get(ref.name).opIndex);
+    } else if (ref instanceof TmplAstVariable && this.varMap.has(ref)) {
+      const opIndexOrNode = this.varMap.get(ref);
+      return typeof opIndexOrNode === "number" ? this.resolveOp(opIndexOrNode) : opIndexOrNode;
+    } else if (ref instanceof TmplAstTemplate && directive === void 0 && this.templateCtxOpMap.has(ref)) {
+      return this.resolveOp(this.templateCtxOpMap.get(ref));
+    } else if ((ref instanceof TmplAstElement2 || ref instanceof TmplAstTemplate || ref instanceof TmplAstComponent2 || ref instanceof TmplAstDirective2 || ref instanceof TmplAstHostElement2) && directive !== void 0 && this.directiveOpMap.has(ref)) {
+      const dirMap = this.directiveOpMap.get(ref);
+      return dirMap.has(directive) ? this.resolveOp(dirMap.get(directive)) : null;
+    } else if (ref instanceof TmplAstElement2 && this.elementOpMap.has(ref)) {
+      return this.resolveOp(this.elementOpMap.get(ref));
+    } else if (ref instanceof TmplAstComponent2 && this.componentNodeOpMap.has(ref)) {
+      return this.resolveOp(this.componentNodeOpMap.get(ref));
+    } else if (ref instanceof TmplAstHostElement2 && this.hostElementOpMap.has(ref)) {
+      return this.resolveOp(this.hostElementOpMap.get(ref));
+    } else {
+      return null;
+    }
+  }
+  /**
+   * Like `executeOp`, but assert that the operation actually returned `ts.Expression`.
+   */
+  resolveOp(opIndex) {
+    const res = this.executeOp(
+      opIndex,
+      /* skipOptional */
+      false
+    );
+    if (res === null) {
+      throw new Error(`Error resolving operation, got null`);
+    }
+    return res;
+  }
+  /**
+   * Execute a particular `TcbOp` in the `opQueue`.
+   *
+   * This method replaces the operation in the `opQueue` with the result of execution (once done)
+   * and also protects against a circular dependency from the operation to itself by temporarily
+   * setting the operation's result to a special expression.
+   */
+  executeOp(opIndex, skipOptional) {
+    const op = this.opQueue[opIndex];
+    if (!(op instanceof TcbOp)) {
+      return op;
+    }
+    if (skipOptional && op.optional) {
+      return null;
+    }
+    this.opQueue[opIndex] = op.circularFallback();
+    const res = op.execute();
+    this.opQueue[opIndex] = res;
+    return res;
+  }
+  appendNode(node) {
+    if (node instanceof TmplAstElement2) {
+      const opIndex = this.opQueue.push(new TcbElementOp(this.tcb, this, node)) - 1;
+      this.elementOpMap.set(node, opIndex);
+      if (this.tcb.env.config.controlFlowPreventingContentProjection !== "suppress") {
+        this.appendContentProjectionCheckOp(node);
+      }
+      this.appendDirectivesAndInputsOfElementLikeNode(node);
+      this.appendOutputsOfElementLikeNode(node, node.inputs, node.outputs);
+      this.appendSelectorlessDirectives(node);
+      this.appendChildren(node);
+      this.checkAndAppendReferencesOfNode(node);
+    } else if (node instanceof TmplAstTemplate) {
+      this.appendDirectivesAndInputsOfElementLikeNode(node);
+      this.appendOutputsOfElementLikeNode(node, node.inputs, node.outputs);
+      this.appendSelectorlessDirectives(node);
+      const ctxIndex = this.opQueue.push(new TcbTemplateContextOp(this.tcb, this)) - 1;
+      this.templateCtxOpMap.set(node, ctxIndex);
+      if (this.tcb.env.config.checkTemplateBodies) {
+        this.opQueue.push(new TcbTemplateBodyOp(this.tcb, this, node));
+      } else if (this.tcb.env.config.alwaysCheckSchemaInTemplateBodies) {
+        this.appendDeepSchemaChecks(node.children);
+      }
+      this.checkAndAppendReferencesOfNode(node);
+    } else if (node instanceof TmplAstComponent2) {
+      this.appendComponentNode(node);
+    } else if (node instanceof TmplAstDeferredBlock) {
+      this.appendDeferredBlock(node);
+    } else if (node instanceof TmplAstIfBlock) {
+      this.opQueue.push(new TcbIfOp(this.tcb, this, node));
+    } else if (node instanceof TmplAstSwitchBlock) {
+      this.opQueue.push(new TcbSwitchOp(this.tcb, this, node));
+    } else if (node instanceof TmplAstForLoopBlock) {
+      this.opQueue.push(new TcbForOfOp(this.tcb, this, node));
+      node.empty && this.tcb.env.config.checkControlFlowBodies && this.appendChildren(node.empty);
+    } else if (node instanceof TmplAstBoundText) {
+      this.opQueue.push(new TcbExpressionOp(this.tcb, this, node.value));
+    } else if (node instanceof TmplAstIcu) {
+      this.appendIcuExpressions(node);
+    } else if (node instanceof TmplAstContent) {
+      this.appendChildren(node);
+    } else if (node instanceof TmplAstLetDeclaration2) {
+      const opIndex = this.opQueue.push(new TcbLetDeclarationOp(this.tcb, this, node)) - 1;
+      if (this.isLocal(node)) {
+        this.tcb.oobRecorder.conflictingDeclaration(this.tcb.id, node);
+      } else {
+        this.letDeclOpMap.set(node.name, { opIndex, node });
+      }
+    } else if (node instanceof TmplAstHostElement2) {
+      this.appendHostElement(node);
+    }
+  }
+  appendChildren(node) {
+    for (const child of node.children) {
+      this.appendNode(child);
+    }
+  }
+  checkAndAppendReferencesOfNode(node) {
+    for (const ref of node.references) {
+      const target = this.tcb.boundTarget.getReferenceTarget(ref);
+      let ctxIndex;
+      if (target === null) {
+        this.tcb.oobRecorder.missingReferenceTarget(this.tcb.id, ref);
+        ctxIndex = this.opQueue.push(new TcbInvalidReferenceOp(this.tcb, this)) - 1;
+      } else if (target instanceof TmplAstTemplate || target instanceof TmplAstElement2) {
+        ctxIndex = this.opQueue.push(new TcbReferenceOp(this.tcb, this, ref, node, target)) - 1;
+      } else {
+        ctxIndex = this.opQueue.push(new TcbReferenceOp(this.tcb, this, ref, node, target.directive)) - 1;
+      }
+      this.referenceOpMap.set(ref, ctxIndex);
+    }
+  }
+  appendDirectivesAndInputsOfElementLikeNode(node) {
+    const claimedInputs = /* @__PURE__ */ new Set();
+    const directives = this.tcb.boundTarget.getDirectivesOfNode(node);
+    if (directives === null || directives.length === 0) {
+      if (node instanceof TmplAstElement2) {
+        this.opQueue.push(new TcbUnclaimedInputsOp(this.tcb, this, node.inputs, node, claimedInputs), new TcbDomSchemaCheckerOp(
+          this.tcb,
+          node,
+          /* checkElement */
+          true,
+          claimedInputs
+        ));
+      }
+      return;
+    }
+    if (node instanceof TmplAstElement2) {
+      const isDeferred = this.tcb.boundTarget.isDeferred(node);
+      if (!isDeferred && directives.some((dirMeta) => dirMeta.isExplicitlyDeferred)) {
+        this.tcb.oobRecorder.deferredComponentUsedEagerly(this.tcb.id, node);
+      }
+    }
+    const dirMap = /* @__PURE__ */ new Map();
+    for (const dir of directives) {
+      this.appendDirectiveInputs(dir, node, dirMap);
+    }
+    this.directiveOpMap.set(node, dirMap);
+    if (node instanceof TmplAstElement2) {
+      for (const dir of directives) {
+        for (const propertyName of dir.inputs.propertyNames) {
+          claimedInputs.add(propertyName);
+        }
+      }
+      this.opQueue.push(new TcbUnclaimedInputsOp(this.tcb, this, node.inputs, node, claimedInputs));
+      const checkElement = directives.length === 0;
+      this.opQueue.push(new TcbDomSchemaCheckerOp(this.tcb, node, checkElement, claimedInputs));
+    }
+  }
+  appendOutputsOfElementLikeNode(node, bindings, events) {
+    const claimedOutputs = /* @__PURE__ */ new Set();
+    const directives = this.tcb.boundTarget.getDirectivesOfNode(node);
+    if (directives === null || directives.length === 0) {
+      if (node instanceof TmplAstElement2) {
+        this.opQueue.push(new TcbUnclaimedOutputsOp(this.tcb, this, node, events, bindings, claimedOutputs));
+      }
+      return;
+    }
+    for (const dir of directives) {
+      this.opQueue.push(new TcbDirectiveOutputsOp(this.tcb, this, node, bindings, events, dir));
+    }
+    if (node instanceof TmplAstElement2 || node instanceof TmplAstHostElement2) {
+      for (const dir of directives) {
+        for (const outputProperty of dir.outputs.propertyNames) {
+          claimedOutputs.add(outputProperty);
+        }
+      }
+      this.opQueue.push(new TcbUnclaimedOutputsOp(this.tcb, this, node, events, bindings, claimedOutputs));
+    }
+  }
+  appendInputsOfSelectorlessNode(node) {
+    const directives = this.tcb.boundTarget.getDirectivesOfNode(node);
+    const claimedInputs = /* @__PURE__ */ new Set();
+    if (directives !== null && directives.length > 0) {
+      const dirMap = /* @__PURE__ */ new Map();
+      for (const dir of directives) {
+        this.appendDirectiveInputs(dir, node, dirMap);
+        for (const propertyName of dir.inputs.propertyNames) {
+          claimedInputs.add(propertyName);
+        }
+      }
+      this.directiveOpMap.set(node, dirMap);
+    }
+    if (node instanceof TmplAstDirective2) {
+      for (const input of node.inputs) {
+        if (!claimedInputs.has(input.name)) {
+          this.tcb.oobRecorder.unclaimedDirectiveBinding(this.tcb.id, node, input);
+        }
+      }
+      for (const attr of node.attributes) {
+        if (!claimedInputs.has(attr.name)) {
+          this.tcb.oobRecorder.unclaimedDirectiveBinding(this.tcb.id, node, attr);
+        }
+      }
+    } else {
+      const checkElement = node.tagName !== null;
+      this.opQueue.push(new TcbUnclaimedInputsOp(this.tcb, this, node.inputs, node, claimedInputs), new TcbDomSchemaCheckerOp(this.tcb, node, checkElement, claimedInputs));
+    }
+  }
+  appendOutputsOfSelectorlessNode(node) {
+    const directives = this.tcb.boundTarget.getDirectivesOfNode(node);
+    const claimedOutputs = /* @__PURE__ */ new Set();
+    if (directives !== null && directives.length > 0) {
+      for (const dir of directives) {
+        this.opQueue.push(new TcbDirectiveOutputsOp(this.tcb, this, node, node.inputs, node.outputs, dir));
+        for (const outputProperty of dir.outputs.propertyNames) {
+          claimedOutputs.add(outputProperty);
+        }
+      }
+    }
+    if (node instanceof TmplAstDirective2) {
+      for (const output of node.outputs) {
+        if (!claimedOutputs.has(output.name)) {
+          this.tcb.oobRecorder.unclaimedDirectiveBinding(this.tcb.id, node, output);
+        }
+      }
+    } else {
+      this.opQueue.push(new TcbUnclaimedOutputsOp(this.tcb, this, node, node.outputs, node.inputs, claimedOutputs));
+    }
+  }
+  appendDirectiveInputs(dir, node, dirMap) {
+    const directiveOp = this.getDirectiveOp(dir, node);
+    const dirIndex = this.opQueue.push(directiveOp) - 1;
+    dirMap.set(dir, dirIndex);
+    this.opQueue.push(new TcbDirectiveInputsOp(this.tcb, this, node, dir));
+  }
+  getDirectiveOp(dir, node) {
+    const dirRef = dir.ref;
+    if (!dir.isGeneric) {
+      return new TcbNonGenericDirectiveTypeOp(this.tcb, this, node, dir);
+    } else if (!requiresInlineTypeCtor(dirRef.node, this.tcb.env.reflector, this.tcb.env) || this.tcb.env.config.useInlineTypeConstructors) {
+      return new TcbDirectiveCtorOp(this.tcb, this, node, dir);
+    }
+    return new TcbGenericDirectiveTypeWithAnyParamsOp(this.tcb, this, node, dir);
+  }
+  appendSelectorlessDirectives(node) {
+    for (const directive of node.directives) {
+      if (!this.tcb.boundTarget.referencedDirectiveExists(directive.name)) {
+        this.tcb.oobRecorder.missingNamedTemplateDependency(this.tcb.id, directive);
+        continue;
+      }
+      const directives = this.tcb.boundTarget.getDirectivesOfNode(directive);
+      if (directives === null || directives.length === 0 || directives.some((dir) => dir.isComponent || !dir.isStandalone)) {
+        this.tcb.oobRecorder.incorrectTemplateDependencyType(this.tcb.id, directive);
+        continue;
+      }
+      this.appendInputsOfSelectorlessNode(directive);
+      this.appendOutputsOfSelectorlessNode(directive);
+      this.checkAndAppendReferencesOfNode(directive);
+    }
+  }
+  appendDeepSchemaChecks(nodes) {
+    for (const node of nodes) {
+      if (!(node instanceof TmplAstElement2 || node instanceof TmplAstTemplate)) {
+        continue;
+      }
+      if (node instanceof TmplAstElement2) {
+        const claimedInputs = /* @__PURE__ */ new Set();
+        let directives = this.tcb.boundTarget.getDirectivesOfNode(node);
+        for (const dirNode of node.directives) {
+          const directiveResults = this.tcb.boundTarget.getDirectivesOfNode(dirNode);
+          if (directiveResults !== null && directiveResults.length > 0) {
+            directives ??= [];
+            directives.push(...directiveResults);
+          }
+        }
+        let hasDirectives;
+        if (directives === null || directives.length === 0) {
+          hasDirectives = false;
+        } else {
+          hasDirectives = true;
+          for (const dir of directives) {
+            for (const propertyName of dir.inputs.propertyNames) {
+              claimedInputs.add(propertyName);
+            }
+          }
+        }
+        this.opQueue.push(new TcbDomSchemaCheckerOp(this.tcb, node, !hasDirectives, claimedInputs));
+      }
+      this.appendDeepSchemaChecks(node.children);
+    }
+  }
+  appendIcuExpressions(node) {
+    for (const variable of Object.values(node.vars)) {
+      this.opQueue.push(new TcbExpressionOp(this.tcb, this, variable.value));
+    }
+    for (const placeholder of Object.values(node.placeholders)) {
+      if (placeholder instanceof TmplAstBoundText) {
+        this.opQueue.push(new TcbExpressionOp(this.tcb, this, placeholder.value));
+      }
+    }
+  }
+  appendContentProjectionCheckOp(root) {
+    const meta = this.tcb.boundTarget.getDirectivesOfNode(root)?.find((meta2) => meta2.isComponent) || null;
+    if (meta !== null && meta.ngContentSelectors !== null && meta.ngContentSelectors.length > 0) {
+      const selectors = meta.ngContentSelectors;
+      if (selectors.length > 1 || selectors.length === 1 && selectors[0] !== "*") {
+        this.opQueue.push(new TcbControlFlowContentProjectionOp(this.tcb, root, selectors, meta.name));
+      }
+    }
+  }
+  appendComponentNode(node) {
+    if (!this.tcb.boundTarget.referencedDirectiveExists(node.componentName)) {
+      this.tcb.oobRecorder.missingNamedTemplateDependency(this.tcb.id, node);
+      return;
+    }
+    const directives = this.tcb.boundTarget.getDirectivesOfNode(node);
+    if (directives === null || directives.length === 0 || directives.every((dir) => !dir.isComponent || !dir.isStandalone)) {
+      this.tcb.oobRecorder.incorrectTemplateDependencyType(this.tcb.id, node);
+      return;
+    }
+    const opIndex = this.opQueue.push(new TcbComponentNodeOp(this.tcb, this, node)) - 1;
+    this.componentNodeOpMap.set(node, opIndex);
+    if (this.tcb.env.config.controlFlowPreventingContentProjection !== "suppress") {
+      this.appendContentProjectionCheckOp(node);
+    }
+    this.appendInputsOfSelectorlessNode(node);
+    this.appendOutputsOfSelectorlessNode(node);
+    this.appendSelectorlessDirectives(node);
+    this.appendChildren(node);
+    this.checkAndAppendReferencesOfNode(node);
+  }
+  appendDeferredBlock(block) {
+    this.appendDeferredTriggers(block, block.triggers);
+    this.appendDeferredTriggers(block, block.prefetchTriggers);
+    if (block.hydrateTriggers.when) {
+      this.opQueue.push(new TcbExpressionOp(this.tcb, this, block.hydrateTriggers.when.value));
+    }
+    this.appendChildren(block);
+    if (block.placeholder !== null) {
+      this.appendChildren(block.placeholder);
+    }
+    if (block.loading !== null) {
+      this.appendChildren(block.loading);
+    }
+    if (block.error !== null) {
+      this.appendChildren(block.error);
+    }
+  }
+  appendDeferredTriggers(block, triggers) {
+    if (triggers.when !== void 0) {
+      this.opQueue.push(new TcbExpressionOp(this.tcb, this, triggers.when.value));
+    }
+    if (triggers.hover !== void 0) {
+      this.validateReferenceBasedDeferredTrigger(block, triggers.hover);
+    }
+    if (triggers.interaction !== void 0) {
+      this.validateReferenceBasedDeferredTrigger(block, triggers.interaction);
+    }
+    if (triggers.viewport !== void 0) {
+      this.validateReferenceBasedDeferredTrigger(block, triggers.viewport);
+    }
+  }
+  appendHostElement(node) {
+    const opIndex = this.opQueue.push(new TcbHostElementOp(this.tcb, this, node)) - 1;
+    const directives = this.tcb.boundTarget.getDirectivesOfNode(node);
+    if (directives !== null && directives.length > 0) {
+      const directiveOpMap = /* @__PURE__ */ new Map();
+      for (const directive of directives) {
+        const directiveOp = this.getDirectiveOp(directive, node);
+        directiveOpMap.set(directive, this.opQueue.push(directiveOp) - 1);
+      }
+      this.directiveOpMap.set(node, directiveOpMap);
+    }
+    this.hostElementOpMap.set(node, opIndex);
+    this.opQueue.push(new TcbUnclaimedInputsOp(this.tcb, this, node.bindings, node, null), new TcbDomSchemaCheckerOp(this.tcb, node, false, null));
+    this.appendOutputsOfElementLikeNode(node, null, node.listeners);
+  }
+  validateReferenceBasedDeferredTrigger(block, trigger) {
+    if (trigger.reference === null) {
+      if (block.placeholder === null) {
+        this.tcb.oobRecorder.deferImplicitTriggerMissingPlaceholder(this.tcb.id, trigger);
+        return;
+      }
+      let rootNode = null;
+      for (const child of block.placeholder.children) {
+        if (!this.tcb.hostPreserveWhitespaces && child instanceof TmplAstText && child.value.trim().length === 0) {
+          continue;
+        }
+        if (rootNode === null) {
+          rootNode = child;
+        } else {
+          rootNode = null;
+          break;
+        }
+      }
+      if (rootNode === null || !(rootNode instanceof TmplAstElement2)) {
+        this.tcb.oobRecorder.deferImplicitTriggerInvalidPlaceholder(this.tcb.id, trigger);
+      }
+      return;
+    }
+    if (this.tcb.boundTarget.getDeferredTriggerTarget(block, trigger) === null) {
+      this.tcb.oobRecorder.inaccessibleDeferredTriggerElement(this.tcb.id, trigger);
+    }
+  }
+  /** Reports a diagnostic if there are any `@let` declarations that conflict with a node. */
+  static checkConflictingLet(scope, node) {
+    if (scope.letDeclOpMap.has(node.name)) {
+      scope.tcb.oobRecorder.conflictingDeclaration(scope.tcb.id, scope.letDeclOpMap.get(node.name).node);
+    }
+  }
+};
+function tcbThisParam(name, typeArguments) {
+  return ts60.factory.createParameterDeclaration(
+    /* modifiers */
+    void 0,
+    /* dotDotDotToken */
+    void 0,
+    /* name */
+    "this",
+    /* questionToken */
+    void 0,
+    /* type */
+    ts60.factory.createTypeReferenceNode(name, typeArguments),
+    /* initializer */
+    void 0
+  );
+}
+function tcbExpression(ast, tcb, scope) {
+  const translator = new TcbExpressionTranslator(tcb, scope);
+  return translator.translate(ast);
+}
+var TcbExpressionTranslator = class {
+  tcb;
+  scope;
+  constructor(tcb, scope) {
+    this.tcb = tcb;
+    this.scope = scope;
+  }
+  translate(ast) {
+    return astToTypescript(ast, (ast2) => this.resolve(ast2), this.tcb.env.config);
+  }
+  /**
+   * Resolve an `AST` expression within the given scope.
+   *
+   * Some `AST` expressions refer to top-level concepts (references, variables, the component
+   * context). This method assists in resolving those.
+   */
+  resolve(ast) {
+    if (ast instanceof PropertyRead4 && ast.receiver instanceof ImplicitReceiver3 && !(ast.receiver instanceof ThisReceiver2)) {
+      const target = this.tcb.boundTarget.getExpressionTarget(ast);
+      const targetExpression = target === null ? null : this.getTargetNodeExpression(target, ast);
+      if (target instanceof TmplAstLetDeclaration2 && !this.isValidLetDeclarationAccess(target, ast)) {
+        this.tcb.oobRecorder.letUsedBeforeDefinition(this.tcb.id, ast, target);
+        if (targetExpression !== null) {
+          return ts60.factory.createAsExpression(targetExpression, ts60.factory.createKeywordTypeNode(ts60.SyntaxKind.AnyKeyword));
+        }
+      }
+      return targetExpression;
+    } else if (ast instanceof Binary && Binary.isAssignmentOperation(ast.operation) && ast.left instanceof PropertyRead4 && ast.left.receiver instanceof ImplicitReceiver3) {
+      const read = ast.left;
+      const target = this.tcb.boundTarget.getExpressionTarget(read);
+      if (target === null) {
+        return null;
+      }
+      const targetExpression = this.getTargetNodeExpression(target, read);
+      const expr = this.translate(ast.right);
+      const result = ts60.factory.createParenthesizedExpression(ts60.factory.createBinaryExpression(targetExpression, ts60.SyntaxKind.EqualsToken, expr));
+      addParseSpanInfo(result, read.sourceSpan);
+      if (target instanceof TmplAstLetDeclaration2) {
+        markIgnoreDiagnostics(result);
+        this.tcb.oobRecorder.illegalWriteToLetDeclaration(this.tcb.id, read, target);
+      }
+      return result;
+    } else if (ast instanceof ImplicitReceiver3) {
+      return ts60.factory.createThis();
+    } else if (ast instanceof BindingPipe) {
+      const expr = this.translate(ast.exp);
+      const pipeMeta = this.tcb.getPipeByName(ast.name);
+      let pipe;
+      if (pipeMeta === null) {
+        this.tcb.oobRecorder.missingPipe(this.tcb.id, ast, this.tcb.hostIsStandalone);
+        pipe = getAnyExpression();
+      } else if (pipeMeta.isExplicitlyDeferred && this.tcb.boundTarget.getEagerlyUsedPipes().includes(ast.name)) {
+        this.tcb.oobRecorder.deferredPipeUsedEagerly(this.tcb.id, ast);
+        pipe = getAnyExpression();
+      } else {
+        pipe = this.tcb.env.pipeInst(pipeMeta.ref);
+      }
+      const args = ast.args.map((arg) => this.translate(arg));
+      let methodAccess = ts60.factory.createPropertyAccessExpression(pipe, "transform");
+      addParseSpanInfo(methodAccess, ast.nameSpan);
+      if (!this.tcb.env.config.checkTypeOfPipes) {
+        methodAccess = ts60.factory.createAsExpression(methodAccess, ts60.factory.createKeywordTypeNode(ts60.SyntaxKind.AnyKeyword));
+      }
+      const result = ts60.factory.createCallExpression(
+        /* expression */
+        methodAccess,
+        /* typeArguments */
+        void 0,
+        /* argumentsArray */
+        [expr, ...args]
+      );
+      addParseSpanInfo(result, ast.sourceSpan);
+      return result;
+    } else if ((ast instanceof Call3 || ast instanceof SafeCall2) && (ast.receiver instanceof PropertyRead4 || ast.receiver instanceof SafePropertyRead3)) {
+      if (ast.receiver.receiver instanceof ImplicitReceiver3 && !(ast.receiver.receiver instanceof ThisReceiver2) && ast.receiver.name === "$any" && ast.args.length === 1) {
+        const expr = this.translate(ast.args[0]);
+        const exprAsAny = ts60.factory.createAsExpression(expr, ts60.factory.createKeywordTypeNode(ts60.SyntaxKind.AnyKeyword));
+        const result = ts60.factory.createParenthesizedExpression(exprAsAny);
+        addParseSpanInfo(result, ast.sourceSpan);
+        return result;
+      }
+      const target = this.tcb.boundTarget.getExpressionTarget(ast);
+      if (target === null) {
+        return null;
+      }
+      const receiver = this.getTargetNodeExpression(target, ast);
+      const method = wrapForDiagnostics(receiver);
+      addParseSpanInfo(method, ast.receiver.nameSpan);
+      const args = ast.args.map((arg) => this.translate(arg));
+      const node = ts60.factory.createCallExpression(method, void 0, args);
+      addParseSpanInfo(node, ast.sourceSpan);
+      return node;
+    } else {
+      return null;
+    }
+  }
+  getTargetNodeExpression(targetNode, expressionNode) {
+    const expr = this.scope.resolve(targetNode);
+    addParseSpanInfo(expr, expressionNode.sourceSpan);
+    return expr;
+  }
+  isValidLetDeclarationAccess(target, ast) {
+    const targetStart = target.sourceSpan.start.offset;
+    const targetEnd = target.sourceSpan.end.offset;
+    const astStart = ast.sourceSpan.start;
+    return targetStart < astStart && astStart > targetEnd || !this.scope.isLocal(target);
+  }
+};
+function tcbCallTypeCtor(dir, tcb, inputs) {
+  const typeCtor = tcb.env.typeCtorFor(dir);
+  const members = inputs.map((input) => {
+    const propertyName = ts60.factory.createStringLiteral(input.field);
+    if (input.type === "binding") {
+      let expr = widenBinding(input.expression, tcb);
+      if (input.isTwoWayBinding && tcb.env.config.allowSignalsInTwoWayBindings) {
+        expr = unwrapWritableSignal(expr, tcb);
+      }
+      const assignment = ts60.factory.createPropertyAssignment(propertyName, wrapForDiagnostics(expr));
+      addParseSpanInfo(assignment, input.sourceSpan);
+      return assignment;
+    } else {
+      return ts60.factory.createPropertyAssignment(propertyName, getAnyExpression());
+    }
+  });
+  return ts60.factory.createCallExpression(
+    /* expression */
+    typeCtor,
+    /* typeArguments */
+    void 0,
+    /* argumentsArray */
+    [ts60.factory.createObjectLiteralExpression(members)]
+  );
+}
+function getBoundAttributes(directive, node) {
+  const boundInputs = [];
+  const processAttribute = (attr) => {
+    if (attr instanceof TmplAstBoundAttribute2 && attr.type !== BindingType2.Property && attr.type !== BindingType2.TwoWay) {
+      return;
+    }
+    const inputs = directive.inputs.getByBindingPropertyName(attr.name);
+    if (inputs !== null) {
+      boundInputs.push({
+        attribute: attr,
+        inputs: inputs.map((input) => {
+          return {
+            fieldName: input.classPropertyName,
+            required: input.required,
+            transformType: input.transform?.type || null,
+            isSignal: input.isSignal,
+            isTwoWayBinding: attr instanceof TmplAstBoundAttribute2 && attr.type === BindingType2.TwoWay
+          };
+        })
+      });
+    }
+  };
+  node.inputs.forEach(processAttribute);
+  node.attributes.forEach(processAttribute);
+  if (node instanceof TmplAstTemplate) {
+    node.templateAttrs.forEach(processAttribute);
+  }
+  return boundInputs;
+}
+function translateInput(attr, tcb, scope) {
+  if (attr instanceof TmplAstBoundAttribute2) {
+    return tcbExpression(attr.value, tcb, scope);
+  } else {
+    return ts60.factory.createStringLiteral(attr.value);
+  }
+}
+function widenBinding(expr, tcb) {
+  if (!tcb.env.config.checkTypeOfInputBindings) {
+    return tsCastToAny(expr);
+  } else if (!tcb.env.config.strictNullInputBindings) {
+    if (ts60.isObjectLiteralExpression(expr) || ts60.isArrayLiteralExpression(expr)) {
+      return expr;
+    } else {
+      return ts60.factory.createNonNullExpression(expr);
+    }
+  } else {
+    return expr;
+  }
+}
+function unwrapWritableSignal(expression, tcb) {
+  const unwrapRef = tcb.env.referenceExternalSymbol(R3Identifiers3.unwrapWritableSignal.moduleName, R3Identifiers3.unwrapWritableSignal.name);
+  return ts60.factory.createCallExpression(unwrapRef, void 0, [expression]);
+}
+var EVENT_PARAMETER = "$event";
+function tcbCreateEventHandler(event, tcb, scope, eventType, assertionExpression) {
+  const handler = tcbEventHandlerExpression(event.handler, tcb, scope);
+  const statements = [];
+  if (assertionExpression !== void 0) {
+    statements.push(ts60.factory.createExpressionStatement(assertionExpression));
+  }
+  if (event.type === ParsedEventType2.TwoWay && tcb.env.config.checkTwoWayBoundEvents) {
+    const target = tcb.allocateId();
+    const assignment = ts60.factory.createBinaryExpression(target, ts60.SyntaxKind.EqualsToken, ts60.factory.createIdentifier(EVENT_PARAMETER));
+    statements.push(tsCreateVariable(target, tcb.env.config.allowSignalsInTwoWayBindings ? unwrapWritableSignal(handler, tcb) : handler), ts60.factory.createExpressionStatement(assignment));
+  } else {
+    statements.push(ts60.factory.createExpressionStatement(handler));
+  }
+  let eventParamType;
+  if (eventType === 0) {
+    eventParamType = void 0;
+  } else if (eventType === 1) {
+    eventParamType = ts60.factory.createKeywordTypeNode(ts60.SyntaxKind.AnyKeyword);
+  } else {
+    eventParamType = eventType;
+  }
+  const guards = scope.guards();
+  let body = ts60.factory.createBlock(statements);
+  if (guards !== null) {
+    body = ts60.factory.createBlock([ts60.factory.createIfStatement(guards, body)]);
+  }
+  const eventParam = ts60.factory.createParameterDeclaration(
+    /* modifiers */
+    void 0,
+    /* dotDotDotToken */
+    void 0,
+    /* name */
+    EVENT_PARAMETER,
+    /* questionToken */
+    void 0,
+    /* type */
+    eventParamType
+  );
+  addExpressionIdentifier(eventParam, ExpressionIdentifier.EVENT_PARAMETER);
+  return ts60.factory.createArrowFunction(
+    /* modifiers */
+    void 0,
+    /* typeParameters */
+    void 0,
+    /* parameters */
+    [eventParam],
+    /* type */
+    ts60.factory.createKeywordTypeNode(ts60.SyntaxKind.AnyKeyword),
+    /* equalsGreaterThanToken */
+    void 0,
+    /* body */
+    body
+  );
+}
+function tcbEventHandlerExpression(ast, tcb, scope) {
+  const translator = new TcbEventHandlerTranslator(tcb, scope);
+  return translator.translate(ast);
+}
+function checkSplitTwoWayBinding(inputName, output, inputs, tcb) {
+  const input = inputs.find((input2) => input2.name === inputName);
+  if (input === void 0 || input.sourceSpan !== output.sourceSpan) {
+    return false;
+  }
+  const inputConsumer = tcb.boundTarget.getConsumerOfBinding(input);
+  const outputConsumer = tcb.boundTarget.getConsumerOfBinding(output);
+  if (outputConsumer === null || inputConsumer.ref === void 0 || outputConsumer instanceof TmplAstTemplate) {
+    return false;
+  }
+  if (outputConsumer instanceof TmplAstElement2) {
+    tcb.oobRecorder.splitTwoWayBinding(tcb.id, input, output, inputConsumer.ref.node, outputConsumer);
+    return true;
+  } else if (outputConsumer.ref !== inputConsumer.ref) {
+    tcb.oobRecorder.splitTwoWayBinding(tcb.id, input, output, inputConsumer.ref.node, outputConsumer.ref.node);
+    return true;
+  }
+  return false;
+}
+var TcbEventHandlerTranslator = class extends TcbExpressionTranslator {
+  resolve(ast) {
+    if (ast instanceof PropertyRead4 && ast.receiver instanceof ImplicitReceiver3 && !(ast.receiver instanceof ThisReceiver2) && ast.name === EVENT_PARAMETER) {
+      const event = ts60.factory.createIdentifier(EVENT_PARAMETER);
+      addParseSpanInfo(event, ast.nameSpan);
+      return event;
+    }
+    return super.resolve(ast);
+  }
+  isValidLetDeclarationAccess() {
+    return true;
+  }
+};
+var TcbForLoopTrackTranslator = class extends TcbExpressionTranslator {
+  block;
+  allowedVariables;
+  constructor(tcb, scope, block) {
+    super(tcb, scope);
+    this.block = block;
+    this.allowedVariables = /* @__PURE__ */ new Set([block.item]);
+    for (const variable of block.contextVariables) {
+      if (variable.value === "$index") {
+        this.allowedVariables.add(variable);
+      }
+    }
+  }
+  resolve(ast) {
+    if (ast instanceof PropertyRead4 && ast.receiver instanceof ImplicitReceiver3) {
+      const target = this.tcb.boundTarget.getExpressionTarget(ast);
+      if (target !== null && (!(target instanceof TmplAstVariable) || !this.allowedVariables.has(target))) {
+        this.tcb.oobRecorder.illegalForLoopTrackAccess(this.tcb.id, this.block, ast);
+      }
+    }
+    return super.resolve(ast);
+  }
+};
+function getComponentTagName(node) {
+  return node.tagName || "ng-component";
+}
+
+// packages/compiler-cli/src/ngtsc/typecheck/src/type_check_file.js
+import ts61 from "typescript";
+var TypeCheckFile = class extends Environment {
+  fileName;
+  nextTcbId = 1;
+  tcbStatements = [];
+  constructor(fileName, config, refEmitter, reflector, compilerHost) {
+    super(config, new ImportManager({
+      // This minimizes noticeable changes with older versions of `ImportManager`.
+      forceGenerateNamespacesForNewImports: true,
+      // Type check block code affects code completion and fix suggestions.
+      // We want to encourage single quotes for now, like we always did.
+      shouldUseSingleQuotes: () => true
+    }), refEmitter, reflector, ts61.createSourceFile(compilerHost.getCanonicalFileName(fileName), "", ts61.ScriptTarget.Latest, true));
+    this.fileName = fileName;
+  }
+  addTypeCheckBlock(ref, meta, domSchemaChecker, oobRecorder, genericContextBehavior) {
+    const fnId = ts61.factory.createIdentifier(`_tcb${this.nextTcbId++}`);
+    const fn = generateTypeCheckBlock(this, ref, fnId, meta, domSchemaChecker, oobRecorder, genericContextBehavior);
+    this.tcbStatements.push(fn);
+  }
+  render(removeComments) {
+    ensureTypeCheckFilePreparationImports(this);
+    const importChanges = this.importManager.finalize();
+    if (importChanges.updatedImports.size > 0) {
+      throw new Error("AssertionError: Expected no imports to be updated for a new type check file.");
+    }
+    const printer = ts61.createPrinter({ removeComments });
+    let source = "";
+    const newImports = importChanges.newImports.get(this.contextFile.fileName);
+    if (newImports !== void 0) {
+      source += newImports.map((i) => printer.printNode(ts61.EmitHint.Unspecified, i, this.contextFile)).join("\n");
+    }
+    source += "\n";
+    for (const stmt of this.pipeInstStatements) {
+      source += printer.printNode(ts61.EmitHint.Unspecified, stmt, this.contextFile) + "\n";
+    }
+    for (const stmt of this.typeCtorStatements) {
+      source += printer.printNode(ts61.EmitHint.Unspecified, stmt, this.contextFile) + "\n";
+    }
+    source += "\n";
+    for (const stmt of this.tcbStatements) {
+      source += printer.printNode(ts61.EmitHint.Unspecified, stmt, this.contextFile) + "\n";
+    }
+    source += "\nexport const IS_A_MODULE = true;\n";
+    return source;
+  }
+  getPreludeStatements() {
+    return [];
+  }
+};
+
+// packages/compiler-cli/src/ngtsc/typecheck/src/context.js
+var InliningMode;
+(function(InliningMode2) {
+  InliningMode2[InliningMode2["InlineOps"] = 0] = "InlineOps";
+  InliningMode2[InliningMode2["Error"] = 1] = "Error";
+})(InliningMode || (InliningMode = {}));
+var TypeCheckContextImpl = class {
+  config;
+  compilerHost;
+  refEmitter;
+  reflector;
+  host;
+  inlining;
+  perf;
+  fileMap = /* @__PURE__ */ new Map();
+  constructor(config, compilerHost, refEmitter, reflector, host, inlining, perf) {
+    this.config = config;
+    this.compilerHost = compilerHost;
+    this.refEmitter = refEmitter;
+    this.reflector = reflector;
+    this.host = host;
+    this.inlining = inlining;
+    this.perf = perf;
+    if (inlining === InliningMode.Error && config.useInlineTypeConstructors) {
+      throw new Error(`AssertionError: invalid inlining configuration.`);
+    }
+  }
+  /**
+   * A `Map` of `ts.SourceFile`s that the context has seen to the operations (additions of methods
+   * or type-check blocks) that need to be eventually performed on that file.
+   */
+  opMap = /* @__PURE__ */ new Map();
+  /**
+   * Tracks when an a particular class has a pending type constructor patching operation already
+   * queued.
+   */
+  typeCtorPending = /* @__PURE__ */ new Set();
+  /**
+   * Register a template to potentially be type-checked.
+   *
+   * Implements `TypeCheckContext.addTemplate`.
+   */
+  addDirective(ref, binder, schemas, templateContext, hostBindingContext, isStandalone) {
+    if (!this.host.shouldCheckClass(ref.node)) {
+      return;
+    }
+    const sourceFile = ref.node.getSourceFile();
+    const fileData = this.dataForFile(sourceFile);
+    const shimData = this.pendingShimForClass(ref.node);
+    const id = fileData.sourceManager.getTypeCheckId(ref.node);
+    const templateParsingDiagnostics = [];
+    if (templateContext !== null && templateContext.parseErrors !== null) {
+      templateParsingDiagnostics.push(...getTemplateDiagnostics(templateContext.parseErrors, id, templateContext.sourceMapping));
+    }
+    const boundTarget = binder.bind({
+      template: templateContext?.nodes,
+      host: hostBindingContext === null ? void 0 : {
+        node: hostBindingContext.node,
+        directives: hostBindingContext.directives
+      }
+    });
+    if (this.inlining === InliningMode.InlineOps) {
+      for (const dir of boundTarget.getUsedDirectives()) {
+        const dirRef = dir.ref;
+        const dirNode = dirRef.node;
+        if (!dir.isGeneric || !requiresInlineTypeCtor(dirNode, this.reflector, shimData.file)) {
+          continue;
+        }
+        this.addInlineTypeCtor(fileData, dirNode.getSourceFile(), dirRef, {
+          fnName: "ngTypeCtor",
+          // The constructor should have a body if the directive comes from a .ts file, but not if
+          // it comes from a .d.ts file. .d.ts declarations don't have bodies.
+          body: !dirNode.getSourceFile().isDeclarationFile,
+          fields: {
+            inputs: dir.inputs,
+            // TODO(alxhub): support queries
+            queries: dir.queries
+          },
+          coercedInputFields: dir.coercedInputFields
+        });
+      }
+    }
+    shimData.data.set(id, {
+      template: templateContext?.nodes || null,
+      boundTarget,
+      templateParsingDiagnostics,
+      hostElement: hostBindingContext?.node ?? null
+    });
+    const usedPipes = [];
+    if (templateContext !== null) {
+      for (const name of boundTarget.getUsedPipes()) {
+        if (templateContext.pipes.has(name)) {
+          usedPipes.push(templateContext.pipes.get(name).ref);
+        }
+      }
+    }
+    const inliningRequirement = requiresInlineTypeCheckBlock(ref, shimData.file, usedPipes, this.reflector);
+    if (this.inlining === InliningMode.Error && inliningRequirement === TcbInliningRequirement.MustInline) {
+      shimData.oobRecorder.requiresInlineTcb(id, ref.node);
+      this.perf.eventCount(PerfEvent.SkipGenerateTcbNoInline);
+      return;
+    }
+    if (templateContext !== null) {
+      fileData.sourceManager.captureTemplateSource(id, templateContext.sourceMapping, templateContext.file);
+    }
+    if (hostBindingContext !== null) {
+      fileData.sourceManager.captureHostBindingsMapping(
+        id,
+        hostBindingContext.sourceMapping,
+        // We only support host bindings in the same file as the directive
+        // so we can get the source file from here.
+        new ParseSourceFile2(sourceFile.text, sourceFile.fileName)
+      );
+    }
+    const meta = {
+      id,
+      boundTarget,
+      pipes: templateContext?.pipes || null,
+      schemas,
+      isStandalone,
+      preserveWhitespaces: templateContext?.preserveWhitespaces ?? false
+    };
+    this.perf.eventCount(PerfEvent.GenerateTcb);
+    if (inliningRequirement !== TcbInliningRequirement.None && this.inlining === InliningMode.InlineOps) {
+      this.addInlineTypeCheckBlock(fileData, shimData, ref, meta);
+    } else if (inliningRequirement === TcbInliningRequirement.ShouldInlineForGenericBounds && this.inlining === InliningMode.Error) {
+      shimData.file.addTypeCheckBlock(ref, meta, shimData.domSchemaChecker, shimData.oobRecorder, TcbGenericContextBehavior.FallbackToAny);
+    } else {
+      shimData.file.addTypeCheckBlock(ref, meta, shimData.domSchemaChecker, shimData.oobRecorder, TcbGenericContextBehavior.UseEmitter);
+    }
+  }
+  /**
+   * Record a type constructor for the given `node` with the given `ctorMetadata`.
+   */
+  addInlineTypeCtor(fileData, sf, ref, ctorMeta) {
+    if (this.typeCtorPending.has(ref.node)) {
+      return;
+    }
+    this.typeCtorPending.add(ref.node);
+    if (!this.opMap.has(sf)) {
+      this.opMap.set(sf, []);
+    }
+    const ops = this.opMap.get(sf);
+    ops.push(new TypeCtorOp(ref, this.reflector, ctorMeta));
+    fileData.hasInlines = true;
+  }
+  /**
+   * Transform a `ts.SourceFile` into a version that includes type checking code.
+   *
+   * If this particular `ts.SourceFile` requires changes, the text representing its new contents
+   * will be returned. Otherwise, a `null` return indicates no changes were necessary.
+   */
+  transform(sf) {
+    if (!this.opMap.has(sf)) {
+      return null;
+    }
+    const printer = ts62.createPrinter({ omitTrailingSemicolon: true });
+    const importManager = new ImportManager({
+      // This minimizes noticeable changes with older versions of `ImportManager`.
+      forceGenerateNamespacesForNewImports: true,
+      // Type check block code affects code completion and fix suggestions.
+      // We want to encourage single quotes for now, like we always did.
+      shouldUseSingleQuotes: () => true
+    });
+    const updates = this.opMap.get(sf).map((op) => {
+      return {
+        pos: op.splitPoint,
+        text: op.execute(importManager, sf, this.refEmitter, printer)
+      };
+    });
+    const { newImports, updatedImports } = importManager.finalize();
+    if (newImports.has(sf.fileName)) {
+      newImports.get(sf.fileName).forEach((newImport) => {
+        updates.push({
+          pos: 0,
+          text: printer.printNode(ts62.EmitHint.Unspecified, newImport, sf)
+        });
+      });
+    }
+    for (const [oldBindings, newBindings] of updatedImports.entries()) {
+      if (oldBindings.getSourceFile() !== sf) {
+        throw new Error("Unexpected updates to unrelated source files.");
+      }
+      updates.push({
+        pos: oldBindings.getStart(),
+        deletePos: oldBindings.getEnd(),
+        text: printer.printNode(ts62.EmitHint.Unspecified, newBindings, sf)
+      });
+    }
+    const result = new MagicString(sf.text, { filename: sf.fileName });
+    for (const update of updates) {
+      if (update.deletePos !== void 0) {
+        result.remove(update.pos, update.deletePos);
+      }
+      result.appendLeft(update.pos, update.text);
+    }
+    return result.toString();
+  }
+  finalize() {
+    const updates = /* @__PURE__ */ new Map();
+    for (const originalSf of this.opMap.keys()) {
+      const newText = this.transform(originalSf);
+      if (newText !== null) {
+        updates.set(absoluteFromSourceFile(originalSf), {
+          newText,
+          originalFile: originalSf
+        });
+      }
+    }
+    for (const [sfPath, pendingFileData] of this.fileMap) {
+      for (const pendingShimData of pendingFileData.shimData.values()) {
+        this.host.recordShimData(sfPath, {
+          genesisDiagnostics: [
+            ...pendingShimData.domSchemaChecker.diagnostics,
+            ...pendingShimData.oobRecorder.diagnostics
+          ],
+          hasInlines: pendingFileData.hasInlines,
+          path: pendingShimData.file.fileName,
+          data: pendingShimData.data
+        });
+        const sfText = pendingShimData.file.render(
+          false
+          /* removeComments */
+        );
+        updates.set(pendingShimData.file.fileName, {
+          newText: sfText,
+          // Shim files do not have an associated original file.
+          originalFile: null
+        });
+      }
+    }
+    return updates;
+  }
+  addInlineTypeCheckBlock(fileData, shimData, ref, tcbMeta) {
+    const sf = ref.node.getSourceFile();
+    if (!this.opMap.has(sf)) {
+      this.opMap.set(sf, []);
+    }
+    const ops = this.opMap.get(sf);
+    ops.push(new InlineTcbOp(ref, tcbMeta, this.config, this.reflector, shimData.domSchemaChecker, shimData.oobRecorder));
+    fileData.hasInlines = true;
+  }
+  pendingShimForClass(node) {
+    const fileData = this.dataForFile(node.getSourceFile());
+    const shimPath = TypeCheckShimGenerator.shimFor(absoluteFromSourceFile(node.getSourceFile()));
+    if (!fileData.shimData.has(shimPath)) {
+      fileData.shimData.set(shimPath, {
+        domSchemaChecker: new RegistryDomSchemaChecker(fileData.sourceManager),
+        oobRecorder: new OutOfBandDiagnosticRecorderImpl(fileData.sourceManager),
+        file: new TypeCheckFile(shimPath, this.config, this.refEmitter, this.reflector, this.compilerHost),
+        data: /* @__PURE__ */ new Map()
+      });
+    }
+    return fileData.shimData.get(shimPath);
+  }
+  dataForFile(sf) {
+    const sfPath = absoluteFromSourceFile(sf);
+    if (!this.fileMap.has(sfPath)) {
+      const data = {
+        hasInlines: false,
+        sourceManager: this.host.getSourceManager(sfPath),
+        shimData: /* @__PURE__ */ new Map()
+      };
+      this.fileMap.set(sfPath, data);
+    }
+    return this.fileMap.get(sfPath);
+  }
+};
+function getTemplateDiagnostics(parseErrors, templateId, sourceMapping) {
+  return parseErrors.map((error) => {
+    const span = error.span;
+    if (span.start.offset === span.end.offset) {
+      span.end.offset++;
+    }
+    return makeTemplateDiagnostic(templateId, sourceMapping, span, ts62.DiagnosticCategory.Error, ngErrorCode(ErrorCode.TEMPLATE_PARSE_ERROR), error.msg);
+  });
+}
+var InlineTcbOp = class {
+  ref;
+  meta;
+  config;
+  reflector;
+  domSchemaChecker;
+  oobRecorder;
+  constructor(ref, meta, config, reflector, domSchemaChecker, oobRecorder) {
+    this.ref = ref;
+    this.meta = meta;
+    this.config = config;
+    this.reflector = reflector;
+    this.domSchemaChecker = domSchemaChecker;
+    this.oobRecorder = oobRecorder;
+  }
+  /**
+   * Type check blocks are inserted immediately after the end of the directve class.
+   */
+  get splitPoint() {
+    return this.ref.node.end + 1;
+  }
+  execute(im, sf, refEmitter, printer) {
+    const env = new Environment(this.config, im, refEmitter, this.reflector, sf);
+    const fnName = ts62.factory.createIdentifier(`_tcb_${this.ref.node.pos}`);
+    const fn = generateTypeCheckBlock(env, this.ref, fnName, this.meta, this.domSchemaChecker, this.oobRecorder, TcbGenericContextBehavior.CopyClassNodes);
+    return printer.printNode(ts62.EmitHint.Unspecified, fn, sf);
+  }
+};
+var TypeCtorOp = class {
+  ref;
+  reflector;
+  meta;
+  constructor(ref, reflector, meta) {
+    this.ref = ref;
+    this.reflector = reflector;
+    this.meta = meta;
+  }
+  /**
+   * Type constructor operations are inserted immediately before the end of the directive class.
+   */
+  get splitPoint() {
+    return this.ref.node.end - 1;
+  }
+  execute(im, sf, refEmitter, printer) {
+    const emitEnv = new ReferenceEmitEnvironment(im, refEmitter, this.reflector, sf);
+    const tcb = generateInlineTypeCtor(emitEnv, this.ref.node, this.meta);
+    return printer.printNode(ts62.EmitHint.Unspecified, tcb, sf);
+  }
+};
+
+// packages/compiler-cli/src/ngtsc/typecheck/src/source.js
+import { ParseLocation as ParseLocation2, ParseSourceSpan as ParseSourceSpan2 } from "@angular/compiler";
+
+// packages/compiler-cli/src/ngtsc/typecheck/src/line_mappings.js
+var LF_CHAR = 10;
+var CR_CHAR = 13;
+var LINE_SEP_CHAR = 8232;
+var PARAGRAPH_CHAR = 8233;
+function getLineAndCharacterFromPosition(lineStartsMap, position) {
+  const lineIndex = findClosestLineStartPosition(lineStartsMap, position);
+  return { character: position - lineStartsMap[lineIndex], line: lineIndex };
+}
+function computeLineStartsMap(text) {
+  const result = [0];
+  let pos = 0;
+  while (pos < text.length) {
+    const char = text.charCodeAt(pos++);
+    if (char === CR_CHAR) {
+      if (text.charCodeAt(pos) === LF_CHAR) {
+        pos++;
+      }
+      result.push(pos);
+    } else if (char === LF_CHAR || char === LINE_SEP_CHAR || char === PARAGRAPH_CHAR) {
+      result.push(pos);
+    }
+  }
+  result.push(pos);
+  return result;
+}
+function findClosestLineStartPosition(linesMap, position, low = 0, high = linesMap.length - 1) {
+  while (low <= high) {
+    const pivotIdx = Math.floor((low + high) / 2);
+    const pivotEl = linesMap[pivotIdx];
+    if (pivotEl === position) {
+      return pivotIdx;
+    } else if (position > pivotEl) {
+      low = pivotIdx + 1;
+    } else {
+      high = pivotIdx - 1;
+    }
+  }
+  return low - 1;
+}
+
+// packages/compiler-cli/src/ngtsc/typecheck/src/source.js
+var Source = class {
+  mapping;
+  file;
+  lineStarts = null;
+  constructor(mapping, file) {
+    this.mapping = mapping;
+    this.file = file;
+  }
+  toParseSourceSpan(start, end) {
+    const startLoc = this.toParseLocation(start);
+    const endLoc = this.toParseLocation(end);
+    return new ParseSourceSpan2(startLoc, endLoc);
+  }
+  toParseLocation(position) {
+    const lineStarts = this.acquireLineStarts();
+    const { line, character } = getLineAndCharacterFromPosition(lineStarts, position);
+    return new ParseLocation2(this.file, position, line, character);
+  }
+  acquireLineStarts() {
+    if (this.lineStarts === null) {
+      this.lineStarts = computeLineStartsMap(this.file.content);
+    }
+    return this.lineStarts;
+  }
+};
+var DirectiveSourceManager = class {
+  /**
+   * This map keeps track of all template sources that have been type-checked by the id that is
+   * attached to a TCB's function declaration as leading trivia. This enables translation of
+   * diagnostics produced for TCB code to their source location in the template.
+   */
+  templateSources = /* @__PURE__ */ new Map();
+  /** Keeps track of type check IDs and the source location of their host bindings. */
+  hostBindingSources = /* @__PURE__ */ new Map();
+  getTypeCheckId(node) {
+    return getTypeCheckId(node);
+  }
+  captureTemplateSource(id, mapping, file) {
+    this.templateSources.set(id, new Source(mapping, file));
+  }
+  captureHostBindingsMapping(id, mapping, file) {
+    this.hostBindingSources.set(id, new Source(mapping, file));
+  }
+  getTemplateSourceMapping(id) {
+    if (!this.templateSources.has(id)) {
+      throw new Error(`Unexpected unknown type check ID: ${id}`);
+    }
+    return this.templateSources.get(id).mapping;
+  }
+  getHostBindingsMapping(id) {
+    if (!this.hostBindingSources.has(id)) {
+      throw new Error(`Unexpected unknown type check ID: ${id}`);
+    }
+    return this.hostBindingSources.get(id).mapping;
+  }
+  toTemplateParseSourceSpan(id, span) {
+    if (!this.templateSources.has(id)) {
+      return null;
+    }
+    const templateSource = this.templateSources.get(id);
+    return templateSource.toParseSourceSpan(span.start, span.end);
+  }
+  toHostParseSourceSpan(id, span) {
+    if (!this.hostBindingSources.has(id)) {
+      return null;
+    }
+    const source = this.hostBindingSources.get(id);
+    return source.toParseSourceSpan(span.start, span.end);
+  }
+};
+
+// packages/compiler-cli/src/ngtsc/typecheck/src/template_symbol_builder.js
+import { AST, ASTWithName as ASTWithName2, ASTWithSource as ASTWithSource2, Binary as Binary2, BindingPipe as BindingPipe2, PropertyRead as PropertyRead5, R3Identifiers as R3Identifiers4, SafePropertyRead as SafePropertyRead4, TmplAstBoundAttribute as TmplAstBoundAttribute3, TmplAstBoundEvent as TmplAstBoundEvent3, TmplAstComponent as TmplAstComponent3, TmplAstDirective as TmplAstDirective3, TmplAstElement as TmplAstElement3, TmplAstLetDeclaration as TmplAstLetDeclaration3, TmplAstReference as TmplAstReference3, TmplAstTemplate as TmplAstTemplate2, TmplAstTextAttribute as TmplAstTextAttribute3, TmplAstVariable as TmplAstVariable2 } from "@angular/compiler";
+import ts63 from "typescript";
+var SymbolBuilder = class {
+  tcbPath;
+  tcbIsShim;
+  typeCheckBlock;
+  typeCheckData;
+  componentScopeReader;
+  getTypeChecker;
+  symbolCache = /* @__PURE__ */ new Map();
+  constructor(tcbPath, tcbIsShim, typeCheckBlock, typeCheckData, componentScopeReader, getTypeChecker) {
+    this.tcbPath = tcbPath;
+    this.tcbIsShim = tcbIsShim;
+    this.typeCheckBlock = typeCheckBlock;
+    this.typeCheckData = typeCheckData;
+    this.componentScopeReader = componentScopeReader;
+    this.getTypeChecker = getTypeChecker;
+  }
+  getSymbol(node) {
+    if (this.symbolCache.has(node)) {
+      return this.symbolCache.get(node);
+    }
+    let symbol = null;
+    if (node instanceof TmplAstBoundAttribute3 || node instanceof TmplAstTextAttribute3) {
+      symbol = this.getSymbolOfInputBinding(node);
+    } else if (node instanceof TmplAstBoundEvent3) {
+      symbol = this.getSymbolOfBoundEvent(node);
+    } else if (node instanceof TmplAstElement3) {
+      symbol = this.getSymbolOfElement(node);
+    } else if (node instanceof TmplAstComponent3) {
+      symbol = this.getSymbolOfSelectorlessComponent(node);
+    } else if (node instanceof TmplAstDirective3) {
+      symbol = this.getSymbolOfSelectorlessDirective(node);
+    } else if (node instanceof TmplAstTemplate2) {
+      symbol = this.getSymbolOfAstTemplate(node);
+    } else if (node instanceof TmplAstVariable2) {
+      symbol = this.getSymbolOfVariable(node);
+    } else if (node instanceof TmplAstLetDeclaration3) {
+      symbol = this.getSymbolOfLetDeclaration(node);
+    } else if (node instanceof TmplAstReference3) {
+      symbol = this.getSymbolOfReference(node);
+    } else if (node instanceof BindingPipe2) {
+      symbol = this.getSymbolOfPipe(node);
+    } else if (node instanceof AST) {
+      symbol = this.getSymbolOfTemplateExpression(node);
+    } else {
+    }
+    this.symbolCache.set(node, symbol);
+    return symbol;
+  }
+  getSymbolOfAstTemplate(template) {
+    const directives = this.getDirectivesOfNode(template);
+    return { kind: SymbolKind.Template, directives, templateNode: template };
+  }
+  getSymbolOfElement(element) {
+    const elementSourceSpan = element.startSourceSpan ?? element.sourceSpan;
+    const node = findFirstMatchingNode(this.typeCheckBlock, {
+      withSpan: elementSourceSpan,
+      filter: ts63.isVariableDeclaration
+    });
+    if (node === null) {
+      return null;
+    }
+    const symbolFromDeclaration = this.getSymbolOfTsNode(node);
+    if (symbolFromDeclaration === null || symbolFromDeclaration.tsSymbol === null) {
+      return null;
+    }
+    const directives = this.getDirectivesOfNode(element);
+    return {
+      ...symbolFromDeclaration,
+      kind: SymbolKind.Element,
+      directives,
+      templateNode: element
+    };
+  }
+  getSymbolOfSelectorlessComponent(node) {
+    const directives = this.getDirectivesOfNode(node);
+    const primaryDirective = directives.find((dir) => !dir.isHostDirective && dir.isComponent) ?? null;
+    if (primaryDirective === null) {
+      return null;
+    }
+    return {
+      tsType: primaryDirective.tsType,
+      tsSymbol: primaryDirective.tsSymbol,
+      tcbLocation: primaryDirective.tcbLocation,
+      kind: SymbolKind.SelectorlessComponent,
+      directives,
+      templateNode: node
+    };
+  }
+  getSymbolOfSelectorlessDirective(node) {
+    const directives = this.getDirectivesOfNode(node);
+    const primaryDirective = directives.find((dir) => !dir.isHostDirective && !dir.isComponent) ?? null;
+    if (primaryDirective === null) {
+      return null;
+    }
+    return {
+      tsType: primaryDirective.tsType,
+      tsSymbol: primaryDirective.tsSymbol,
+      tcbLocation: primaryDirective.tcbLocation,
+      kind: SymbolKind.SelectorlessDirective,
+      directives,
+      templateNode: node
+    };
+  }
+  getDirectivesOfNode(templateNode) {
+    const elementSourceSpan = templateNode.startSourceSpan ?? templateNode.sourceSpan;
+    const nodes = findAllMatchingNodes(this.typeCheckBlock, {
+      withSpan: elementSourceSpan,
+      filter: isDirectiveDeclaration
+    });
+    const symbols = [];
+    const seenDirectives = /* @__PURE__ */ new Set();
+    for (const node of nodes) {
+      const symbol = this.getSymbolOfTsNode(node.parent);
+      if (symbol === null || !isSymbolWithValueDeclaration(symbol.tsSymbol) || !ts63.isClassDeclaration(symbol.tsSymbol.valueDeclaration)) {
+        continue;
+      }
+      const declaration = symbol.tsSymbol.valueDeclaration;
+      const meta = this.getDirectiveMeta(templateNode, declaration);
+      if (meta !== null && !seenDirectives.has(declaration)) {
+        const ref = new Reference(declaration);
+        if (meta.hostDirectives !== null) {
+          this.addHostDirectiveSymbols(templateNode, meta.hostDirectives, symbols, seenDirectives);
+        }
+        const directiveSymbol = {
+          ...symbol,
+          ref,
+          tsSymbol: symbol.tsSymbol,
+          selector: meta.selector,
+          isComponent: meta.isComponent,
+          ngModule: this.getDirectiveModule(declaration),
+          kind: SymbolKind.Directive,
+          isStructural: meta.isStructural,
+          isInScope: true,
+          isHostDirective: false,
+          tsCompletionEntryInfos: null
+        };
+        symbols.push(directiveSymbol);
+        seenDirectives.add(declaration);
+      }
+    }
+    return symbols;
+  }
+  addHostDirectiveSymbols(host, hostDirectives, symbols, seenDirectives) {
+    for (const current of hostDirectives) {
+      if (!isHostDirectiveMetaForGlobalMode(current)) {
+        throw new Error("Impossible state: typecheck code path in local compilation mode.");
+      }
+      const node = current.directive.node;
+      if (!ts63.isClassDeclaration(node) || seenDirectives.has(node)) {
+        continue;
+      }
+      const symbol = this.getSymbolOfTsNode(node);
+      const meta = this.getDirectiveMeta(host, node);
+      if (meta !== null && symbol !== null && isSymbolWithValueDeclaration(symbol.tsSymbol)) {
+        if (meta.hostDirectives !== null) {
+          this.addHostDirectiveSymbols(host, meta.hostDirectives, symbols, seenDirectives);
+        }
+        const directiveSymbol = {
+          ...symbol,
+          isHostDirective: true,
+          ref: current.directive,
+          tsSymbol: symbol.tsSymbol,
+          exposedInputs: current.inputs,
+          exposedOutputs: current.outputs,
+          selector: meta.selector,
+          isComponent: meta.isComponent,
+          ngModule: this.getDirectiveModule(node),
+          kind: SymbolKind.Directive,
+          isStructural: meta.isStructural,
+          isInScope: true,
+          tsCompletionEntryInfos: null
+        };
+        symbols.push(directiveSymbol);
+        seenDirectives.add(node);
+      }
+    }
+  }
+  getDirectiveMeta(host, directiveDeclaration) {
+    let directives = this.typeCheckData.boundTarget.getDirectivesOfNode(host);
+    if (!(host instanceof TmplAstDirective3)) {
+      const firstChild = host.children[0];
+      if (firstChild instanceof TmplAstElement3) {
+        const isMicrosyntaxTemplate = host instanceof TmplAstTemplate2 && sourceSpanEqual(firstChild.sourceSpan, host.sourceSpan);
+        if (isMicrosyntaxTemplate) {
+          const firstChildDirectives = this.typeCheckData.boundTarget.getDirectivesOfNode(firstChild);
+          if (firstChildDirectives !== null && directives !== null) {
+            directives = directives.concat(firstChildDirectives);
+          } else {
+            directives = directives ?? firstChildDirectives;
+          }
+        }
+      }
+    }
+    if (directives === null) {
+      return null;
+    }
+    const directive = directives.find((m) => m.ref.node === directiveDeclaration);
+    if (directive) {
+      return directive;
+    }
+    const originalFile = directiveDeclaration.getSourceFile()[NgOriginalFile];
+    if (originalFile !== void 0) {
+      const hasPotentialCandidate = directives.find((m) => m.ref.node.name.text === directiveDeclaration.name?.text);
+      if (hasPotentialCandidate) {
+        const classWithSameName = findMatchingDirective(originalFile, directiveDeclaration);
+        if (classWithSameName !== null) {
+          return directives.find((m) => m.ref.node === classWithSameName) ?? null;
+        }
+      }
+    }
+    return null;
+  }
+  getDirectiveModule(declaration) {
+    const scope = this.componentScopeReader.getScopeForComponent(declaration);
+    if (scope === null || scope.kind !== ComponentScopeKind.NgModule) {
+      return null;
+    }
+    return scope.ngModule;
+  }
+  getSymbolOfBoundEvent(eventBinding) {
+    const consumer = this.typeCheckData.boundTarget.getConsumerOfBinding(eventBinding);
+    if (consumer === null) {
+      return null;
+    }
+    let expectedAccess;
+    if (consumer instanceof TmplAstTemplate2 || consumer instanceof TmplAstElement3) {
+      expectedAccess = "addEventListener";
+    } else {
+      const bindingPropertyNames = consumer.outputs.getByBindingPropertyName(eventBinding.name);
+      if (bindingPropertyNames === null || bindingPropertyNames.length === 0) {
+        return null;
+      }
+      expectedAccess = bindingPropertyNames[0].classPropertyName;
+    }
+    function filter(n2) {
+      if (!isAccessExpression(n2)) {
+        return false;
+      }
+      if (ts63.isPropertyAccessExpression(n2)) {
+        return n2.name.getText() === expectedAccess;
+      } else {
+        return ts63.isStringLiteral(n2.argumentExpression) && n2.argumentExpression.text === expectedAccess;
+      }
+    }
+    const outputFieldAccesses = findAllMatchingNodes(this.typeCheckBlock, {
+      withSpan: eventBinding.keySpan,
+      filter
+    });
+    const bindings = [];
+    for (const outputFieldAccess of outputFieldAccesses) {
+      if (consumer instanceof TmplAstTemplate2 || consumer instanceof TmplAstElement3) {
+        if (!ts63.isPropertyAccessExpression(outputFieldAccess)) {
+          continue;
+        }
+        const addEventListener = outputFieldAccess.name;
+        const tsSymbol = this.getTypeChecker().getSymbolAtLocation(addEventListener);
+        const tsType = this.getTypeChecker().getTypeAtLocation(addEventListener);
+        const positionInFile = this.getTcbPositionForNode(addEventListener);
+        const target = this.getSymbol(consumer);
+        if (target === null || tsSymbol === void 0) {
+          continue;
+        }
+        bindings.push({
+          kind: SymbolKind.Binding,
+          tsSymbol,
+          tsType,
+          target,
+          tcbLocation: {
+            tcbPath: this.tcbPath,
+            isShimFile: this.tcbIsShim,
+            positionInFile
+          }
+        });
+      } else {
+        if (!ts63.isElementAccessExpression(outputFieldAccess)) {
+          continue;
+        }
+        const tsSymbol = this.getTypeChecker().getSymbolAtLocation(outputFieldAccess.argumentExpression);
+        if (tsSymbol === void 0) {
+          continue;
+        }
+        const target = this.getDirectiveSymbolForAccessExpression(outputFieldAccess, consumer);
+        if (target === null) {
+          continue;
+        }
+        const positionInFile = this.getTcbPositionForNode(outputFieldAccess);
+        const tsType = this.getTypeChecker().getTypeAtLocation(outputFieldAccess);
+        bindings.push({
+          kind: SymbolKind.Binding,
+          tsSymbol,
+          tsType,
+          target,
+          tcbLocation: {
+            tcbPath: this.tcbPath,
+            isShimFile: this.tcbIsShim,
+            positionInFile
+          }
+        });
+      }
+    }
+    if (bindings.length === 0) {
+      return null;
+    }
+    return { kind: SymbolKind.Output, bindings };
+  }
+  getSymbolOfInputBinding(binding) {
+    const consumer = this.typeCheckData.boundTarget.getConsumerOfBinding(binding);
+    if (consumer === null) {
+      return null;
+    }
+    if (consumer instanceof TmplAstElement3 || consumer instanceof TmplAstTemplate2) {
+      const host = this.getSymbol(consumer);
+      return host !== null ? { kind: SymbolKind.DomBinding, host } : null;
+    }
+    const nodes = findAllMatchingNodes(this.typeCheckBlock, {
+      withSpan: binding.sourceSpan,
+      filter: isAssignment
+    });
+    const bindings = [];
+    for (const node of nodes) {
+      if (!isAccessExpression(node.left)) {
+        continue;
+      }
+      const signalInputAssignment = unwrapSignalInputWriteTAccessor(node.left);
+      let fieldAccessExpr;
+      let symbolInfo = null;
+      if (signalInputAssignment !== null) {
+        if (ts63.isIdentifier(signalInputAssignment.fieldExpr)) {
+          continue;
+        }
+        const fieldSymbol = this.getSymbolOfTsNode(signalInputAssignment.fieldExpr);
+        const typeSymbol = this.getSymbolOfTsNode(signalInputAssignment.typeExpr);
+        fieldAccessExpr = signalInputAssignment.fieldExpr;
+        symbolInfo = fieldSymbol === null || typeSymbol === null ? null : {
+          tcbLocation: fieldSymbol.tcbLocation,
+          tsSymbol: fieldSymbol.tsSymbol,
+          tsType: typeSymbol.tsType
+        };
+      } else {
+        fieldAccessExpr = node.left;
+        symbolInfo = this.getSymbolOfTsNode(node.left);
+      }
+      if (symbolInfo === null || symbolInfo.tsSymbol === null) {
+        continue;
+      }
+      const target = this.getDirectiveSymbolForAccessExpression(fieldAccessExpr, consumer);
+      if (target === null) {
+        continue;
+      }
+      bindings.push({
+        ...symbolInfo,
+        tsSymbol: symbolInfo.tsSymbol,
+        kind: SymbolKind.Binding,
+        target
+      });
+    }
+    if (bindings.length === 0) {
+      return null;
+    }
+    return { kind: SymbolKind.Input, bindings };
+  }
+  getDirectiveSymbolForAccessExpression(fieldAccessExpr, { isComponent, selector, isStructural }) {
+    const tsSymbol = this.getTypeChecker().getSymbolAtLocation(fieldAccessExpr.expression);
+    if (tsSymbol?.declarations === void 0 || tsSymbol.declarations.length === 0) {
+      return null;
+    }
+    const [declaration] = tsSymbol.declarations;
+    if (!ts63.isVariableDeclaration(declaration) || !hasExpressionIdentifier(
+      // The expression identifier could be on the type (for regular directives) or the name
+      // (for generic directives and the ctor op).
+      declaration.getSourceFile(),
+      declaration.type ?? declaration.name,
+      ExpressionIdentifier.DIRECTIVE
+    )) {
+      return null;
+    }
+    const symbol = this.getSymbolOfTsNode(declaration);
+    if (symbol === null || !isSymbolWithValueDeclaration(symbol.tsSymbol) || !ts63.isClassDeclaration(symbol.tsSymbol.valueDeclaration)) {
+      return null;
+    }
+    const ref = new Reference(symbol.tsSymbol.valueDeclaration);
+    const ngModule = this.getDirectiveModule(symbol.tsSymbol.valueDeclaration);
+    return {
+      ref,
+      kind: SymbolKind.Directive,
+      tsSymbol: symbol.tsSymbol,
+      tsType: symbol.tsType,
+      tcbLocation: symbol.tcbLocation,
+      isComponent,
+      isStructural,
+      selector,
+      ngModule,
+      isHostDirective: false,
+      isInScope: true,
+      // TODO: this should always be in scope in this context, right?
+      tsCompletionEntryInfos: null
+    };
+  }
+  getSymbolOfVariable(variable) {
+    const node = findFirstMatchingNode(this.typeCheckBlock, {
+      withSpan: variable.sourceSpan,
+      filter: ts63.isVariableDeclaration
+    });
+    if (node === null) {
+      return null;
+    }
+    let nodeValueSymbol = null;
+    if (ts63.isForOfStatement(node.parent.parent)) {
+      nodeValueSymbol = this.getSymbolOfTsNode(node);
+    } else if (node.initializer !== void 0) {
+      nodeValueSymbol = this.getSymbolOfTsNode(node.initializer);
+    }
+    if (nodeValueSymbol === null) {
+      return null;
+    }
+    return {
+      tsType: nodeValueSymbol.tsType,
+      tsSymbol: nodeValueSymbol.tsSymbol,
+      initializerLocation: nodeValueSymbol.tcbLocation,
+      kind: SymbolKind.Variable,
+      declaration: variable,
+      localVarLocation: {
+        tcbPath: this.tcbPath,
+        isShimFile: this.tcbIsShim,
+        positionInFile: this.getTcbPositionForNode(node.name)
+      }
+    };
+  }
+  getSymbolOfReference(ref) {
+    const target = this.typeCheckData.boundTarget.getReferenceTarget(ref);
+    let node = findFirstMatchingNode(this.typeCheckBlock, {
+      withSpan: ref.sourceSpan,
+      filter: ts63.isVariableDeclaration
+    });
+    if (node === null || target === null || node.initializer === void 0) {
+      return null;
+    }
+    const originalDeclaration = ts63.isParenthesizedExpression(node.initializer) && ts63.isAsExpression(node.initializer.expression) ? this.getTypeChecker().getSymbolAtLocation(node.name) : this.getTypeChecker().getSymbolAtLocation(node.initializer);
+    if (originalDeclaration === void 0 || originalDeclaration.valueDeclaration === void 0) {
+      return null;
+    }
+    const symbol = this.getSymbolOfTsNode(originalDeclaration.valueDeclaration);
+    if (symbol === null || symbol.tsSymbol === null) {
+      return null;
+    }
+    const referenceVarTcbLocation = {
+      tcbPath: this.tcbPath,
+      isShimFile: this.tcbIsShim,
+      positionInFile: this.getTcbPositionForNode(node)
+    };
+    if (target instanceof TmplAstTemplate2 || target instanceof TmplAstElement3) {
+      return {
+        kind: SymbolKind.Reference,
+        tsSymbol: symbol.tsSymbol,
+        tsType: symbol.tsType,
+        target,
+        declaration: ref,
+        targetLocation: symbol.tcbLocation,
+        referenceVarLocation: referenceVarTcbLocation
+      };
+    } else {
+      if (!ts63.isClassDeclaration(target.directive.ref.node)) {
+        return null;
+      }
+      return {
+        kind: SymbolKind.Reference,
+        tsSymbol: symbol.tsSymbol,
+        tsType: symbol.tsType,
+        declaration: ref,
+        target: target.directive.ref.node,
+        targetLocation: symbol.tcbLocation,
+        referenceVarLocation: referenceVarTcbLocation
+      };
+    }
+  }
+  getSymbolOfLetDeclaration(decl) {
+    const node = findFirstMatchingNode(this.typeCheckBlock, {
+      withSpan: decl.sourceSpan,
+      filter: ts63.isVariableDeclaration
+    });
+    if (node === null) {
+      return null;
+    }
+    const nodeValueSymbol = this.getSymbolOfTsNode(node.initializer);
+    if (nodeValueSymbol === null) {
+      return null;
+    }
+    return {
+      tsType: nodeValueSymbol.tsType,
+      tsSymbol: nodeValueSymbol.tsSymbol,
+      initializerLocation: nodeValueSymbol.tcbLocation,
+      kind: SymbolKind.LetDeclaration,
+      declaration: decl,
+      localVarLocation: {
+        tcbPath: this.tcbPath,
+        isShimFile: this.tcbIsShim,
+        positionInFile: this.getTcbPositionForNode(node.name)
+      }
+    };
+  }
+  getSymbolOfPipe(expression) {
+    const methodAccess = findFirstMatchingNode(this.typeCheckBlock, {
+      withSpan: expression.nameSpan,
+      filter: ts63.isPropertyAccessExpression
+    });
+    if (methodAccess === null) {
+      return null;
+    }
+    const pipeVariableNode = methodAccess.expression;
+    const pipeDeclaration = this.getTypeChecker().getSymbolAtLocation(pipeVariableNode);
+    if (pipeDeclaration === void 0 || pipeDeclaration.valueDeclaration === void 0) {
+      return null;
+    }
+    const pipeInstance = this.getSymbolOfTsNode(pipeDeclaration.valueDeclaration);
+    if (pipeInstance === null || !isSymbolWithValueDeclaration(pipeInstance.tsSymbol)) {
+      return null;
+    }
+    const symbolInfo = this.getSymbolOfTsNode(methodAccess);
+    if (symbolInfo === null) {
+      return null;
+    }
+    return {
+      kind: SymbolKind.Pipe,
+      ...symbolInfo,
+      classSymbol: {
+        ...pipeInstance,
+        tsSymbol: pipeInstance.tsSymbol
+      }
+    };
+  }
+  getSymbolOfTemplateExpression(expression) {
+    if (expression instanceof ASTWithSource2) {
+      expression = expression.ast;
+    }
+    const expressionTarget = this.typeCheckData.boundTarget.getExpressionTarget(expression);
+    if (expressionTarget !== null) {
+      return this.getSymbol(expressionTarget);
+    }
+    let withSpan = expression.sourceSpan;
+    if (expression instanceof Binary2 && Binary2.isAssignmentOperation(expression.operation) && expression.left instanceof PropertyRead5) {
+      withSpan = expression.left.nameSpan;
+    } else if (expression instanceof ASTWithName2 && !(expression instanceof SafePropertyRead4)) {
+      withSpan = expression.nameSpan;
+    }
+    let node = null;
+    if (expression instanceof PropertyRead5) {
+      node = findFirstMatchingNode(this.typeCheckBlock, {
+        withSpan,
+        filter: ts63.isPropertyAccessExpression
+      });
+    }
+    if (node === null) {
+      node = findFirstMatchingNode(this.typeCheckBlock, { withSpan, filter: anyNodeFilter });
+    }
+    if (node === null) {
+      return null;
+    }
+    while (ts63.isParenthesizedExpression(node)) {
+      node = node.expression;
+    }
+    if (expression instanceof SafePropertyRead4 && ts63.isConditionalExpression(node)) {
+      const whenTrueSymbol = this.getSymbolOfTsNode(node.whenTrue);
+      if (whenTrueSymbol === null) {
+        return null;
+      }
+      return {
+        ...whenTrueSymbol,
+        kind: SymbolKind.Expression,
+        // Rather than using the type of only the `whenTrue` part of the expression, we should
+        // still get the type of the whole conditional expression to include `|undefined`.
+        tsType: this.getTypeChecker().getTypeAtLocation(node)
+      };
+    } else {
+      const symbolInfo = this.getSymbolOfTsNode(node);
+      return symbolInfo === null ? null : { ...symbolInfo, kind: SymbolKind.Expression };
+    }
+  }
+  getSymbolOfTsNode(node) {
+    while (ts63.isParenthesizedExpression(node)) {
+      node = node.expression;
+    }
+    let tsSymbol;
+    if (ts63.isPropertyAccessExpression(node)) {
+      tsSymbol = this.getTypeChecker().getSymbolAtLocation(node.name);
+    } else if (ts63.isCallExpression(node)) {
+      tsSymbol = this.getTypeChecker().getSymbolAtLocation(node.expression);
+    } else {
+      tsSymbol = this.getTypeChecker().getSymbolAtLocation(node);
+    }
+    const positionInFile = this.getTcbPositionForNode(node);
+    const type = this.getTypeChecker().getTypeAtLocation(node);
+    return {
+      // If we could not find a symbol, fall back to the symbol on the type for the node.
+      // Some nodes won't have a "symbol at location" but will have a symbol for the type.
+      // Examples of this would be literals and `document.createElement('div')`.
+      tsSymbol: tsSymbol ?? type.symbol ?? null,
+      tsType: type,
+      tcbLocation: {
+        tcbPath: this.tcbPath,
+        isShimFile: this.tcbIsShim,
+        positionInFile
+      }
+    };
+  }
+  getTcbPositionForNode(node) {
+    if (ts63.isTypeReferenceNode(node)) {
+      return this.getTcbPositionForNode(node.typeName);
+    } else if (ts63.isQualifiedName(node)) {
+      return node.right.getStart();
+    } else if (ts63.isPropertyAccessExpression(node)) {
+      return node.name.getStart();
+    } else if (ts63.isElementAccessExpression(node)) {
+      return node.argumentExpression.getStart();
+    } else {
+      return node.getStart();
+    }
+  }
+};
+function anyNodeFilter(n2) {
+  return true;
+}
+function sourceSpanEqual(a, b) {
+  return a.start.offset === b.start.offset && a.end.offset === b.end.offset;
+}
+function unwrapSignalInputWriteTAccessor(expr) {
+  if (!ts63.isElementAccessExpression(expr) || !ts63.isPropertyAccessExpression(expr.argumentExpression)) {
+    return null;
+  }
+  if (!ts63.isIdentifier(expr.argumentExpression.name) || expr.argumentExpression.name.text !== R3Identifiers4.InputSignalBrandWriteType.name) {
+    return null;
+  }
+  if (!ts63.isPropertyAccessExpression(expr.expression) && !ts63.isElementAccessExpression(expr.expression) && !ts63.isIdentifier(expr.expression)) {
+    throw new Error("Unexpected expression for signal input write type.");
+  }
+  return {
+    fieldExpr: expr.expression,
+    typeExpr: expr
+  };
+}
+function findMatchingDirective(originalSourceFile, directiveDeclarationInTypeCheckSourceFile) {
+  const className = directiveDeclarationInTypeCheckSourceFile.name?.text ?? "";
+  const ogClasses = collectClassesWithName(originalSourceFile, className);
+  const typecheckClasses = collectClassesWithName(directiveDeclarationInTypeCheckSourceFile.getSourceFile(), className);
+  return ogClasses[typecheckClasses.indexOf(directiveDeclarationInTypeCheckSourceFile)] ?? null;
+}
+function collectClassesWithName(sourceFile, className) {
+  const classes = [];
+  function visit2(node) {
+    if (ts63.isClassDeclaration(node) && node.name?.text === className) {
+      classes.push(node);
+    }
+    ts63.forEachChild(node, visit2);
+  }
+  sourceFile.forEachChild(visit2);
+  return classes;
+}
+
+// packages/compiler-cli/src/ngtsc/typecheck/src/checker.js
+var REGISTRY2 = new DomElementSchemaRegistry2();
+var TemplateTypeCheckerImpl = class {
+  originalProgram;
+  programDriver;
+  typeCheckAdapter;
+  config;
+  refEmitter;
+  reflector;
+  compilerHost;
+  priorBuild;
+  metaReader;
+  localMetaReader;
+  ngModuleIndex;
+  componentScopeReader;
+  typeCheckScopeRegistry;
+  perf;
+  state = /* @__PURE__ */ new Map();
+  /**
+   * Stores the `CompletionEngine` which powers autocompletion for each component class.
+   *
+   * Must be invalidated whenever the component's template or the `ts.Program` changes. Invalidation
+   * on template changes is performed within this `TemplateTypeCheckerImpl` instance. When the
+   * `ts.Program` changes, the `TemplateTypeCheckerImpl` as a whole is destroyed and replaced.
+   */
+  completionCache = /* @__PURE__ */ new Map();
+  /**
+   * Stores the `SymbolBuilder` which creates symbols for each component class.
+   *
+   * Must be invalidated whenever the component's template or the `ts.Program` changes. Invalidation
+   * on template changes is performed within this `TemplateTypeCheckerImpl` instance. When the
+   * `ts.Program` changes, the `TemplateTypeCheckerImpl` as a whole is destroyed and replaced.
+   */
+  symbolBuilderCache = /* @__PURE__ */ new Map();
+  /**
+   * Stores directives and pipes that are in scope for each component.
+   *
+   * Unlike other caches, the scope of a component is not affected by its template. It will be
+   * destroyed when the `ts.Program` changes and the `TemplateTypeCheckerImpl` as a whole is
+   * destroyed and replaced.
+   */
+  scopeCache = /* @__PURE__ */ new Map();
+  /**
+   * Stores potential element tags for each component (a union of DOM tags as well as directive
+   * tags).
+   *
+   * Unlike other caches, the scope of a component is not affected by its template. It will be
+   * destroyed when the `ts.Program` changes and the `TemplateTypeCheckerImpl` as a whole is
+   * destroyed and replaced.
+   */
+  elementTagCache = /* @__PURE__ */ new Map();
+  isComplete = false;
+  priorResultsAdopted = false;
+  constructor(originalProgram, programDriver, typeCheckAdapter, config, refEmitter, reflector, compilerHost, priorBuild, metaReader, localMetaReader, ngModuleIndex, componentScopeReader, typeCheckScopeRegistry, perf) {
+    this.originalProgram = originalProgram;
+    this.programDriver = programDriver;
+    this.typeCheckAdapter = typeCheckAdapter;
+    this.config = config;
+    this.refEmitter = refEmitter;
+    this.reflector = reflector;
+    this.compilerHost = compilerHost;
+    this.priorBuild = priorBuild;
+    this.metaReader = metaReader;
+    this.localMetaReader = localMetaReader;
+    this.ngModuleIndex = ngModuleIndex;
+    this.componentScopeReader = componentScopeReader;
+    this.typeCheckScopeRegistry = typeCheckScopeRegistry;
+    this.perf = perf;
+  }
+  getTemplate(component, optimizeFor) {
+    const { data } = this.getLatestComponentState(component, optimizeFor);
+    return data?.template ?? null;
+  }
+  getHostElement(directive, optimizeFor) {
+    const { data } = this.getLatestComponentState(directive, optimizeFor);
+    return data?.hostElement ?? null;
+  }
+  getUsedDirectives(component) {
+    return this.getLatestComponentState(component).data?.boundTarget.getUsedDirectives() ?? null;
+  }
+  getUsedPipes(component) {
+    return this.getLatestComponentState(component).data?.boundTarget.getUsedPipes() ?? null;
+  }
+  getLatestComponentState(component, optimizeFor = OptimizeFor.SingleFile) {
+    switch (optimizeFor) {
+      case OptimizeFor.WholeProgram:
+        this.ensureAllShimsForAllFiles();
+        break;
+      case OptimizeFor.SingleFile:
+        this.ensureShimForComponent(component);
+        break;
+    }
+    const sf = component.getSourceFile();
+    const sfPath = absoluteFromSourceFile(sf);
+    const shimPath = TypeCheckShimGenerator.shimFor(sfPath);
+    const fileRecord = this.getFileData(sfPath);
+    if (!fileRecord.shimData.has(shimPath)) {
+      return { data: null, tcb: null, tcbPath: shimPath, tcbIsShim: true };
+    }
+    const id = fileRecord.sourceManager.getTypeCheckId(component);
+    const shimRecord = fileRecord.shimData.get(shimPath);
+    const program = this.programDriver.getProgram();
+    const shimSf = getSourceFileOrNull(program, shimPath);
+    if (shimSf === null || !fileRecord.shimData.has(shimPath)) {
+      throw new Error(`Error: no shim file in program: ${shimPath}`);
+    }
+    let tcb = findTypeCheckBlock(
+      shimSf,
+      id,
+      /*isDiagnosticsRequest*/
+      false
+    );
+    let tcbPath = shimPath;
+    if (tcb === null) {
+      const inlineSf = getSourceFileOrError(program, sfPath);
+      tcb = findTypeCheckBlock(
+        inlineSf,
+        id,
+        /*isDiagnosticsRequest*/
+        false
+      );
+      if (tcb !== null) {
+        tcbPath = sfPath;
+      }
+    }
+    let data = null;
+    if (shimRecord.data.has(id)) {
+      data = shimRecord.data.get(id);
+    }
+    return { data, tcb, tcbPath, tcbIsShim: tcbPath === shimPath };
+  }
+  isTrackedTypeCheckFile(filePath) {
+    return this.getFileAndShimRecordsForPath(filePath) !== null;
+  }
+  getFileRecordForTcbLocation({ tcbPath, isShimFile }) {
+    if (!isShimFile) {
+      if (this.state.has(tcbPath)) {
+        return this.state.get(tcbPath);
+      } else {
+        return null;
+      }
+    }
+    const records = this.getFileAndShimRecordsForPath(tcbPath);
+    if (records !== null) {
+      return records.fileRecord;
+    } else {
+      return null;
+    }
+  }
+  getFileAndShimRecordsForPath(shimPath) {
+    for (const fileRecord of this.state.values()) {
+      if (fileRecord.shimData.has(shimPath)) {
+        return { fileRecord, shimRecord: fileRecord.shimData.get(shimPath) };
+      }
+    }
+    return null;
+  }
+  getSourceMappingAtTcbLocation(tcbLocation) {
+    const fileRecord = this.getFileRecordForTcbLocation(tcbLocation);
+    if (fileRecord === null) {
+      return null;
+    }
+    const shimSf = this.programDriver.getProgram().getSourceFile(tcbLocation.tcbPath);
+    if (shimSf === void 0) {
+      return null;
+    }
+    return getSourceMapping(
+      shimSf,
+      tcbLocation.positionInFile,
+      fileRecord.sourceManager,
+      /*isDiagnosticsRequest*/
+      false
+    );
+  }
+  generateAllTypeCheckBlocks() {
+    this.ensureAllShimsForAllFiles();
+  }
+  /**
+   * Retrieve type-checking and template parse diagnostics from the given `ts.SourceFile` using the
+   * most recent type-checking program.
+   */
+  getDiagnosticsForFile(sf, optimizeFor) {
+    switch (optimizeFor) {
+      case OptimizeFor.WholeProgram:
+        this.ensureAllShimsForAllFiles();
+        break;
+      case OptimizeFor.SingleFile:
+        this.ensureAllShimsForOneFile(sf);
+        break;
+    }
+    return this.perf.inPhase(PerfPhase.TtcDiagnostics, () => {
+      const sfPath = absoluteFromSourceFile(sf);
+      const fileRecord = this.state.get(sfPath);
+      const typeCheckProgram = this.programDriver.getProgram();
+      const diagnostics = [];
+      if (fileRecord.hasInlines) {
+        const inlineSf = getSourceFileOrError(typeCheckProgram, sfPath);
+        diagnostics.push(...typeCheckProgram.getSemanticDiagnostics(inlineSf).map((diag) => convertDiagnostic(diag, fileRecord.sourceManager)));
+      }
+      for (const [shimPath, shimRecord] of fileRecord.shimData) {
+        const shimSf = getSourceFileOrError(typeCheckProgram, shimPath);
+        diagnostics.push(...typeCheckProgram.getSemanticDiagnostics(shimSf).map((diag) => convertDiagnostic(diag, fileRecord.sourceManager)));
+        diagnostics.push(...shimRecord.genesisDiagnostics);
+        for (const templateData of shimRecord.data.values()) {
+          diagnostics.push(...templateData.templateParsingDiagnostics);
+        }
+      }
+      return diagnostics.filter((diag) => diag !== null);
+    });
+  }
+  getSuggestionDiagnosticsForFile(sf, tsLs, optimizeFor) {
+    switch (optimizeFor) {
+      case OptimizeFor.WholeProgram:
+        this.ensureAllShimsForAllFiles();
+        break;
+      case OptimizeFor.SingleFile:
+        this.ensureAllShimsForOneFile(sf);
+        break;
+    }
+    return this.perf.inPhase(PerfPhase.TtcSuggestionDiagnostics, () => {
+      const sfPath = absoluteFromSourceFile(sf);
+      const fileRecord = this.state.get(sfPath);
+      const diagnostics = [];
+      const program = this.programDriver.getProgram();
+      if (fileRecord.hasInlines) {
+        diagnostics.push(...getDeprecatedSuggestionDiagnostics(tsLs, program, sfPath, fileRecord, this));
+      }
+      for (const [shimPath] of fileRecord.shimData) {
+        diagnostics.push(...getDeprecatedSuggestionDiagnostics(tsLs, program, shimPath, fileRecord, this));
+      }
+      return diagnostics.filter((diag) => diag !== null);
+    });
+  }
+  getDiagnosticsForComponent(component) {
+    this.ensureShimForComponent(component);
+    return this.perf.inPhase(PerfPhase.TtcDiagnostics, () => {
+      const sf = component.getSourceFile();
+      const sfPath = absoluteFromSourceFile(sf);
+      const shimPath = TypeCheckShimGenerator.shimFor(sfPath);
+      const fileRecord = this.getFileData(sfPath);
+      if (!fileRecord.shimData.has(shimPath)) {
+        return [];
+      }
+      const id = fileRecord.sourceManager.getTypeCheckId(component);
+      const shimRecord = fileRecord.shimData.get(shimPath);
+      const typeCheckProgram = this.programDriver.getProgram();
+      const diagnostics = [];
+      if (shimRecord.hasInlines) {
+        const inlineSf = getSourceFileOrError(typeCheckProgram, sfPath);
+        diagnostics.push(...typeCheckProgram.getSemanticDiagnostics(inlineSf).map((diag) => convertDiagnostic(diag, fileRecord.sourceManager)));
+      }
+      const shimSf = getSourceFileOrError(typeCheckProgram, shimPath);
+      diagnostics.push(...typeCheckProgram.getSemanticDiagnostics(shimSf).map((diag) => convertDiagnostic(diag, fileRecord.sourceManager)));
+      diagnostics.push(...shimRecord.genesisDiagnostics);
+      for (const templateData of shimRecord.data.values()) {
+        diagnostics.push(...templateData.templateParsingDiagnostics);
+      }
+      return diagnostics.filter((diag) => diag !== null && diag.typeCheckId === id);
+    });
+  }
+  getSuggestionDiagnosticsForComponent(component, tsLs) {
+    this.ensureShimForComponent(component);
+    return this.perf.inPhase(PerfPhase.TtcSuggestionDiagnostics, () => {
+      const sf = component.getSourceFile();
+      const sfPath = absoluteFromSourceFile(sf);
+      const shimPath = TypeCheckShimGenerator.shimFor(sfPath);
+      const fileRecord = this.getFileData(sfPath);
+      if (!fileRecord.shimData.has(shimPath)) {
+        return [];
+      }
+      const templateId = fileRecord.sourceManager.getTypeCheckId(component);
+      const shimRecord = fileRecord.shimData.get(shimPath);
+      const diagnostics = [];
+      const program = this.programDriver.getProgram();
+      if (shimRecord.hasInlines) {
+        diagnostics.push(...getDeprecatedSuggestionDiagnostics(tsLs, program, sfPath, fileRecord, this));
+      }
+      diagnostics.push(...getDeprecatedSuggestionDiagnostics(tsLs, program, shimPath, fileRecord, this));
+      return diagnostics.filter((diag) => diag !== null && diag.typeCheckId === templateId);
+    });
+  }
+  getTypeCheckBlock(component) {
+    return this.getLatestComponentState(component).tcb;
+  }
+  getGlobalCompletions(context, component, node) {
+    const engine = this.getOrCreateCompletionEngine(component);
+    if (engine === null) {
+      return null;
+    }
+    return this.perf.inPhase(PerfPhase.TtcAutocompletion, () => engine.getGlobalCompletions(context, node));
+  }
+  getExpressionCompletionLocation(ast, component) {
+    const engine = this.getOrCreateCompletionEngine(component);
+    if (engine === null) {
+      return null;
+    }
+    return this.perf.inPhase(PerfPhase.TtcAutocompletion, () => engine.getExpressionCompletionLocation(ast));
+  }
+  getLiteralCompletionLocation(node, component) {
+    const engine = this.getOrCreateCompletionEngine(component);
+    if (engine === null) {
+      return null;
+    }
+    return this.perf.inPhase(PerfPhase.TtcAutocompletion, () => engine.getLiteralCompletionLocation(node));
+  }
+  invalidateClass(clazz) {
+    this.completionCache.delete(clazz);
+    this.symbolBuilderCache.delete(clazz);
+    this.scopeCache.delete(clazz);
+    this.elementTagCache.delete(clazz);
+    const sf = clazz.getSourceFile();
+    const sfPath = absoluteFromSourceFile(sf);
+    const shimPath = TypeCheckShimGenerator.shimFor(sfPath);
+    const fileData = this.getFileData(sfPath);
+    const id = fileData.sourceManager.getTypeCheckId(clazz);
+    fileData.shimData.delete(shimPath);
+    fileData.isComplete = false;
+    this.isComplete = false;
+  }
+  getExpressionTarget(expression, clazz) {
+    return this.getLatestComponentState(clazz).data?.boundTarget.getExpressionTarget(expression) ?? null;
+  }
+  makeTemplateDiagnostic(clazz, sourceSpan, category, errorCode, message, relatedInformation) {
+    const sfPath = absoluteFromSourceFile(clazz.getSourceFile());
+    const fileRecord = this.state.get(sfPath);
+    const id = fileRecord.sourceManager.getTypeCheckId(clazz);
+    const mapping = fileRecord.sourceManager.getTemplateSourceMapping(id);
+    return {
+      ...makeTemplateDiagnostic(id, mapping, sourceSpan, category, ngErrorCode(errorCode), message, relatedInformation),
+      __ngCode: errorCode
+    };
+  }
+  getOrCreateCompletionEngine(component) {
+    if (this.completionCache.has(component)) {
+      return this.completionCache.get(component);
+    }
+    const { tcb, data, tcbPath, tcbIsShim } = this.getLatestComponentState(component);
+    if (tcb === null || data === null) {
+      return null;
+    }
+    const engine = new CompletionEngine(tcb, data, tcbPath, tcbIsShim);
+    this.completionCache.set(component, engine);
+    return engine;
+  }
+  maybeAdoptPriorResults() {
+    if (this.priorResultsAdopted) {
+      return;
+    }
+    for (const sf of this.originalProgram.getSourceFiles()) {
+      if (sf.isDeclarationFile || isShim(sf)) {
+        continue;
+      }
+      const sfPath = absoluteFromSourceFile(sf);
+      if (this.state.has(sfPath)) {
+        const existingResults = this.state.get(sfPath);
+        if (existingResults.isComplete) {
+          continue;
+        }
+      }
+      const previousResults = this.priorBuild.priorTypeCheckingResultsFor(sf);
+      if (previousResults === null || !previousResults.isComplete) {
+        continue;
+      }
+      this.perf.eventCount(PerfEvent.ReuseTypeCheckFile);
+      this.state.set(sfPath, previousResults);
+    }
+    this.priorResultsAdopted = true;
+  }
+  ensureAllShimsForAllFiles() {
+    if (this.isComplete) {
+      return;
+    }
+    this.maybeAdoptPriorResults();
+    this.perf.inPhase(PerfPhase.TcbGeneration, () => {
+      const host = new WholeProgramTypeCheckingHost(this);
+      const ctx = this.newContext(host);
+      for (const sf of this.originalProgram.getSourceFiles()) {
+        if (sf.isDeclarationFile || isShim(sf)) {
+          continue;
+        }
+        const sfPath = absoluteFromSourceFile(sf);
+        const fileData = this.getFileData(sfPath);
+        if (fileData.isComplete) {
+          continue;
+        }
+        this.typeCheckAdapter.typeCheck(sf, ctx);
+        fileData.isComplete = true;
+      }
+      this.updateFromContext(ctx);
+      this.isComplete = true;
+    });
+  }
+  ensureAllShimsForOneFile(sf) {
+    this.maybeAdoptPriorResults();
+    this.perf.inPhase(PerfPhase.TcbGeneration, () => {
+      const sfPath = absoluteFromSourceFile(sf);
+      const fileData = this.getFileData(sfPath);
+      if (fileData.isComplete) {
+        return;
+      }
+      const host = new SingleFileTypeCheckingHost(sfPath, fileData, this);
+      const ctx = this.newContext(host);
+      this.typeCheckAdapter.typeCheck(sf, ctx);
+      fileData.isComplete = true;
+      this.updateFromContext(ctx);
+    });
+  }
+  ensureShimForComponent(component) {
+    this.maybeAdoptPriorResults();
+    const sf = component.getSourceFile();
+    const sfPath = absoluteFromSourceFile(sf);
+    const shimPath = TypeCheckShimGenerator.shimFor(sfPath);
+    const fileData = this.getFileData(sfPath);
+    if (fileData.shimData.has(shimPath)) {
+      return;
+    }
+    const host = new SingleShimTypeCheckingHost(sfPath, fileData, this, shimPath);
+    const ctx = this.newContext(host);
+    this.typeCheckAdapter.typeCheck(sf, ctx);
+    this.updateFromContext(ctx);
+  }
+  newContext(host) {
+    const inlining = this.programDriver.supportsInlineOperations ? InliningMode.InlineOps : InliningMode.Error;
+    return new TypeCheckContextImpl(this.config, this.compilerHost, this.refEmitter, this.reflector, host, inlining, this.perf);
+  }
+  /**
+   * Remove any shim data that depends on inline operations applied to the type-checking program.
+   *
+   * This can be useful if new inlines need to be applied, and it's not possible to guarantee that
+   * they won't overwrite or corrupt existing inlines that are used by such shims.
+   */
+  clearAllShimDataUsingInlines() {
+    for (const fileData of this.state.values()) {
+      if (!fileData.hasInlines) {
+        continue;
+      }
+      for (const [shimFile, shimData] of fileData.shimData.entries()) {
+        if (shimData.hasInlines) {
+          fileData.shimData.delete(shimFile);
+        }
+      }
+      fileData.hasInlines = false;
+      fileData.isComplete = false;
+      this.isComplete = false;
+    }
+  }
+  updateFromContext(ctx) {
+    const updates = ctx.finalize();
+    return this.perf.inPhase(PerfPhase.TcbUpdateProgram, () => {
+      if (updates.size > 0) {
+        this.perf.eventCount(PerfEvent.UpdateTypeCheckProgram);
+      }
+      this.programDriver.updateFiles(updates, UpdateMode.Incremental);
+      this.priorBuild.recordSuccessfulTypeCheck(this.state);
+      this.perf.memory(PerfCheckpoint.TtcUpdateProgram);
+    });
+  }
+  getFileData(path) {
+    if (!this.state.has(path)) {
+      this.state.set(path, {
+        hasInlines: false,
+        sourceManager: new DirectiveSourceManager(),
+        isComplete: false,
+        shimData: /* @__PURE__ */ new Map()
+      });
+    }
+    return this.state.get(path);
+  }
+  getSymbolOfNode(node, component) {
+    const builder = this.getOrCreateSymbolBuilder(component);
+    if (builder === null) {
+      return null;
+    }
+    return this.perf.inPhase(PerfPhase.TtcSymbol, () => builder.getSymbol(node));
+  }
+  getOrCreateSymbolBuilder(component) {
+    if (this.symbolBuilderCache.has(component)) {
+      return this.symbolBuilderCache.get(component);
+    }
+    const { tcb, data, tcbPath, tcbIsShim } = this.getLatestComponentState(component);
+    if (tcb === null || data === null) {
+      return null;
+    }
+    const builder = new SymbolBuilder(tcbPath, tcbIsShim, tcb, data, this.componentScopeReader, () => this.programDriver.getProgram().getTypeChecker());
+    this.symbolBuilderCache.set(component, builder);
+    return builder;
+  }
+  getGlobalTsContext(component) {
+    const engine = this.getOrCreateCompletionEngine(component);
+    if (engine === null) {
+      return null;
+    }
+    return engine.getGlobalTsContext();
+  }
+  getPotentialTemplateDirectives(component, tsLs, options) {
+    const scope = this.getComponentScope(component);
+    if (scope?.kind === ComponentScopeKind.Selectorless) {
+      return [];
+    }
+    const resultingDirectives = /* @__PURE__ */ new Map();
+    const directivesInScope = this.getTemplateDirectiveInScope(component);
+    const directiveInGlobal = this.getElementsInGlobal(component, tsLs, options);
+    for (const directive of [...directivesInScope, ...directiveInGlobal]) {
+      if (resultingDirectives.has(directive.ref.node)) {
+        continue;
+      }
+      resultingDirectives.set(directive.ref.node, directive);
+    }
+    return Array.from(resultingDirectives.values());
+  }
+  getPotentialPipes(component) {
+    const scope = this.getComponentScope(component);
+    if (scope?.kind === ComponentScopeKind.Selectorless) {
+      return [];
+    }
+    const typeChecker = this.programDriver.getProgram().getTypeChecker();
+    const resultingPipes = /* @__PURE__ */ new Map();
+    if (scope !== null) {
+      const inScopePipes = this.getScopeData(component, scope)?.pipes ?? [];
+      for (const p of inScopePipes) {
+        resultingPipes.set(p.ref.node, p);
+      }
+    }
+    for (const pipeClass of this.localMetaReader.getKnown(MetaKind.Pipe)) {
+      const pipeMeta = this.metaReader.getPipeMetadata(new Reference(pipeClass));
+      if (pipeMeta === null)
+        continue;
+      if (resultingPipes.has(pipeClass))
+        continue;
+      const withScope = this.scopeDataOfPipeMeta(typeChecker, pipeMeta);
+      if (withScope === null)
+        continue;
+      resultingPipes.set(pipeClass, { ...withScope, isInScope: false });
+    }
+    return Array.from(resultingPipes.values());
+  }
+  getDirectiveMetadata(dir) {
+    if (!isNamedClassDeclaration(dir)) {
+      return null;
+    }
+    return this.typeCheckScopeRegistry.getTypeCheckDirectiveMetadata(new Reference(dir));
+  }
+  getNgModuleMetadata(module) {
+    if (!isNamedClassDeclaration(module)) {
+      return null;
+    }
+    return this.metaReader.getNgModuleMetadata(new Reference(module));
+  }
+  getPipeMetadata(pipe) {
+    if (!isNamedClassDeclaration(pipe)) {
+      return null;
+    }
+    return this.metaReader.getPipeMetadata(new Reference(pipe));
+  }
+  getTemplateDirectiveInScope(component) {
+    const resultingDirectives = /* @__PURE__ */ new Map();
+    const scope = this.getComponentScope(component);
+    if (scope?.kind === ComponentScopeKind.Selectorless) {
+      return [];
+    }
+    if (scope !== null) {
+      const inScopeDirectives = this.getScopeData(component, scope)?.directives ?? [];
+      for (const d of inScopeDirectives) {
+        resultingDirectives.set(d.ref.node, d);
+      }
+    }
+    const typeChecker = this.programDriver.getProgram().getTypeChecker();
+    const currentComponentFileName = component.getSourceFile().fileName;
+    for (const directiveClass of this.localMetaReader.getKnown(MetaKind.Directive)) {
+      if (directiveClass.getSourceFile().fileName !== currentComponentFileName) {
+        continue;
+      }
+      const directiveMeta = this.metaReader.getDirectiveMetadata(new Reference(directiveClass));
+      if (directiveMeta === null)
+        continue;
+      if (resultingDirectives.has(directiveClass))
+        continue;
+      const withScope = this.scopeDataOfDirectiveMeta(typeChecker, directiveMeta);
+      if (withScope === null)
+        continue;
+      resultingDirectives.set(directiveClass, { ...withScope, isInScope: false });
+    }
+    return Array.from(resultingDirectives.values());
+  }
+  getDirectiveScopeData(component, isInScope, tsCompletionEntryInfo) {
+    const typeChecker = this.programDriver.getProgram().getTypeChecker();
+    if (!isNamedClassDeclaration(component)) {
+      return null;
+    }
+    const directiveMeta = this.metaReader.getDirectiveMetadata(new Reference(component));
+    if (directiveMeta === null) {
+      return null;
+    }
+    const withScope = this.scopeDataOfDirectiveMeta(typeChecker, directiveMeta);
+    if (withScope === null) {
+      return null;
+    }
+    return {
+      ...withScope,
+      isInScope,
+      /**
+       * The Angular LS only supports displaying one directive at a time when
+       * providing the completion item, even if it's exported by multiple modules.
+       */
+      tsCompletionEntryInfos: tsCompletionEntryInfo !== null ? [tsCompletionEntryInfo] : null
+    };
+  }
+  getElementsInFileScope(component) {
+    const tagMap = /* @__PURE__ */ new Map();
+    const potentialDirectives = this.getTemplateDirectiveInScope(component);
+    for (const directive of potentialDirectives) {
+      if (directive.selector === null) {
+        continue;
+      }
+      for (const selector of CssSelector4.parse(directive.selector)) {
+        if (selector.element === null || tagMap.has(selector.element)) {
+          continue;
+        }
+        tagMap.set(selector.element, directive);
+      }
+    }
+    return tagMap;
+  }
+  getElementsInGlobal(component, tsLs, options) {
+    const tsContext = this.getGlobalTsContext(component);
+    if (tsContext === null) {
+      return [];
+    }
+    if (!options.includeExternalModule) {
+      return [];
+    }
+    const entries = tsLs.getCompletionsAtPosition(tsContext.tcbPath, tsContext.positionInFile, {
+      includeSymbol: true,
+      includeCompletionsForModuleExports: true
+    })?.entries;
+    const typeChecker = this.programDriver.getProgram().getTypeChecker();
+    const resultingDirectives = /* @__PURE__ */ new Map();
+    const currentComponentFileName = component.getSourceFile().fileName;
+    for (const { symbol, data } of entries ?? []) {
+      const symbolFileName = symbol?.declarations?.[0]?.getSourceFile().fileName;
+      const symbolName = symbol?.name;
+      if (symbolFileName === void 0 || symbolName === void 0) {
+        continue;
+      }
+      if (symbolFileName === currentComponentFileName) {
+        continue;
+      }
+      const decl = getClassDeclFromSymbol(symbol, typeChecker);
+      if (decl === null) {
+        continue;
+      }
+      const directiveDecls = [];
+      const ref = new Reference(decl);
+      const directiveMeta = this.metaReader.getDirectiveMetadata(ref);
+      if (directiveMeta?.isStandalone) {
+        directiveDecls.push({
+          meta: directiveMeta,
+          ref
+        });
+      } else {
+        const directiveDeclsForNgModule = this.getDirectiveDeclsForNgModule(ref);
+        directiveDecls.push(...directiveDeclsForNgModule);
+      }
+      for (const directiveDecl of directiveDecls) {
+        const cachedCompletionEntryInfos = resultingDirectives.get(directiveDecl.ref.node)?.tsCompletionEntryInfos ?? [];
+        appendOrReplaceTsEntryInfo(cachedCompletionEntryInfos, {
+          tsCompletionEntryData: data,
+          tsCompletionEntrySymbolFileName: symbolFileName,
+          tsCompletionEntrySymbolName: symbolName
+        }, this.programDriver.getProgram());
+        if (resultingDirectives.has(directiveDecl.ref.node)) {
+          const directiveInfo = resultingDirectives.get(directiveDecl.ref.node);
+          resultingDirectives.set(directiveDecl.ref.node, {
+            ...directiveInfo,
+            tsCompletionEntryInfos: cachedCompletionEntryInfos
+          });
+          continue;
+        }
+        const withScope = this.scopeDataOfDirectiveMeta(typeChecker, directiveDecl.meta);
+        if (withScope === null) {
+          continue;
+        }
+        resultingDirectives.set(directiveDecl.ref.node, {
+          ...withScope,
+          isInScope: false,
+          tsCompletionEntryInfos: cachedCompletionEntryInfos
+        });
+      }
+    }
+    return Array.from(resultingDirectives.values());
+  }
+  /**
+   * If the NgModule exports a new module, we need to recursively get its directives.
+   */
+  getDirectiveDeclsForNgModule(ref) {
+    const ngModuleMeta = this.metaReader.getNgModuleMetadata(ref);
+    if (ngModuleMeta === null) {
+      return [];
+    }
+    const directiveDecls = [];
+    for (const moduleExports of ngModuleMeta.exports) {
+      const directiveMeta = this.metaReader.getDirectiveMetadata(moduleExports);
+      if (directiveMeta !== null) {
+        directiveDecls.push({
+          meta: directiveMeta,
+          ref: moduleExports
+        });
+      } else {
+        const ngModuleMeta2 = this.metaReader.getNgModuleMetadata(moduleExports);
+        if (ngModuleMeta2 === null) {
+          continue;
+        }
+        const nestedDirectiveDecls = this.getDirectiveDeclsForNgModule(moduleExports);
+        directiveDecls.push(...nestedDirectiveDecls);
+      }
+    }
+    return directiveDecls;
+  }
+  getPotentialElementTags(component, tsLs, options) {
+    if (this.elementTagCache.has(component)) {
+      return this.elementTagCache.get(component);
+    }
+    const tagMap = /* @__PURE__ */ new Map();
+    for (const tag of REGISTRY2.allKnownElementNames()) {
+      tagMap.set(tag, null);
+    }
+    const potentialDirectives = this.getPotentialTemplateDirectives(component, tsLs, options);
+    for (const directive of potentialDirectives) {
+      if (directive.selector === null) {
+        continue;
+      }
+      for (const selector of CssSelector4.parse(directive.selector)) {
+        if (selector.element === null || tagMap.has(selector.element)) {
+          continue;
+        }
+        tagMap.set(selector.element, directive);
+      }
+    }
+    this.elementTagCache.set(component, tagMap);
+    return tagMap;
+  }
+  getPotentialDomBindings(tagName) {
+    const attributes = REGISTRY2.allKnownAttributesOfElement(tagName);
+    return attributes.map((attribute) => ({
+      attribute,
+      property: REGISTRY2.getMappedPropName(attribute)
+    }));
+  }
+  getPotentialDomEvents(tagName) {
+    return REGISTRY2.allKnownEventsOfElement(tagName);
+  }
+  getPrimaryAngularDecorator(target) {
+    this.ensureAllShimsForOneFile(target.getSourceFile());
+    if (!isNamedClassDeclaration(target)) {
+      return null;
+    }
+    const ref = new Reference(target);
+    const dirMeta = this.metaReader.getDirectiveMetadata(ref);
+    if (dirMeta !== null) {
+      return dirMeta.decorator;
+    }
+    const pipeMeta = this.metaReader.getPipeMetadata(ref);
+    if (pipeMeta !== null) {
+      return pipeMeta.decorator;
+    }
+    const ngModuleMeta = this.metaReader.getNgModuleMetadata(ref);
+    if (ngModuleMeta !== null) {
+      return ngModuleMeta.decorator;
+    }
+    return null;
+  }
+  getOwningNgModule(component) {
+    if (!isNamedClassDeclaration(component)) {
+      return null;
+    }
+    const dirMeta = this.metaReader.getDirectiveMetadata(new Reference(component));
+    if (dirMeta !== null && dirMeta.isStandalone) {
+      return null;
+    }
+    const scope = this.componentScopeReader.getScopeForComponent(component);
+    if (scope === null || scope.kind !== ComponentScopeKind.NgModule || !isNamedClassDeclaration(scope.ngModule)) {
+      return null;
+    }
+    return scope.ngModule;
+  }
+  emit(kind, refTo, inContext) {
+    const emittedRef = this.refEmitter.emit(refTo, inContext.getSourceFile());
+    if (emittedRef.kind === ReferenceEmitKind.Failed) {
+      return null;
+    }
+    const emitted = emittedRef.expression;
+    if (emitted instanceof WrappedNodeExpr8) {
+      if (refTo.node === inContext) {
+        return null;
+      }
+      let isForwardReference = false;
+      if (emitted.node.getStart() > inContext.getStart()) {
+        const declaration = this.programDriver.getProgram().getTypeChecker().getTypeAtLocation(emitted.node).getSymbol()?.declarations?.[0];
+        if (declaration && declaration.getSourceFile() === inContext.getSourceFile()) {
+          isForwardReference = true;
+        }
+      }
+      return { kind, symbolName: emitted.node.text, isForwardReference };
+    } else if (emitted instanceof ExternalExpr8 && emitted.value.moduleName !== null && emitted.value.name !== null) {
+      return {
+        kind,
+        moduleSpecifier: emitted.value.moduleName,
+        symbolName: emitted.value.name,
+        isForwardReference: false
+      };
+    }
+    return null;
+  }
+  getPotentialImportsFor(toImport, inContext, importMode, potentialDirectiveModuleSpecifierResolver) {
+    const imports = [];
+    const meta = this.metaReader.getDirectiveMetadata(toImport) ?? this.metaReader.getPipeMetadata(toImport);
+    if (meta === null) {
+      return imports;
+    }
+    let highestImportPriority = -1;
+    const collectImports = (emit, moduleSpecifierDetail) => {
+      if (emit === null) {
+        return;
+      }
+      imports.push({
+        ...emit,
+        moduleSpecifier: moduleSpecifierDetail?.moduleSpecifier ?? emit.moduleSpecifier,
+        symbolName: moduleSpecifierDetail?.exportName ?? emit.symbolName
+      });
+      if (moduleSpecifierDetail !== null && highestImportPriority === -1) {
+        highestImportPriority = imports.length - 1;
+      }
+    };
+    if (meta.isStandalone || importMode === PotentialImportMode.ForceDirect) {
+      const emitted = this.emit(PotentialImportKind.Standalone, toImport, inContext);
+      const moduleSpecifierDetail = potentialDirectiveModuleSpecifierResolver?.resolve(toImport, inContext) ?? null;
+      collectImports(emitted, moduleSpecifierDetail);
+    }
+    const exportingNgModules = this.ngModuleIndex.getNgModulesExporting(meta.ref.node);
+    if (exportingNgModules !== null) {
+      for (const exporter of exportingNgModules) {
+        const emittedRef = this.emit(PotentialImportKind.NgModule, exporter, inContext);
+        const moduleSpecifierDetail = potentialDirectiveModuleSpecifierResolver?.resolve(exporter, inContext) ?? null;
+        collectImports(emittedRef, moduleSpecifierDetail);
+      }
+    }
+    if (highestImportPriority > 0) {
+      const highImport = imports.splice(highestImportPriority, 1)[0];
+      imports.unshift(highImport);
+    }
+    return imports;
+  }
+  getComponentScope(component) {
+    if (!isNamedClassDeclaration(component)) {
+      throw new Error(`AssertionError: components must have names`);
+    }
+    return this.componentScopeReader.getScopeForComponent(component);
+  }
+  getScopeData(component, scope) {
+    if (this.scopeCache.has(component)) {
+      return this.scopeCache.get(component);
+    }
+    const dependencies = scope.kind === ComponentScopeKind.NgModule ? scope.compilation.dependencies : scope.dependencies;
+    const data = {
+      directives: [],
+      pipes: [],
+      isPoisoned: scope.kind === ComponentScopeKind.NgModule ? scope.compilation.isPoisoned : scope.isPoisoned
+    };
+    const typeChecker = this.programDriver.getProgram().getTypeChecker();
+    for (const dep of dependencies) {
+      if (dep.kind === MetaKind.Directive) {
+        const dirScope = this.scopeDataOfDirectiveMeta(typeChecker, dep);
+        if (dirScope === null)
+          continue;
+        data.directives.push({ ...dirScope, isInScope: true });
+      } else if (dep.kind === MetaKind.Pipe) {
+        const pipeScope = this.scopeDataOfPipeMeta(typeChecker, dep);
+        if (pipeScope === null)
+          continue;
+        data.pipes.push({ ...pipeScope, isInScope: true });
+      }
+    }
+    this.scopeCache.set(component, data);
+    return data;
+  }
+  scopeDataOfDirectiveMeta(typeChecker, dep) {
+    if (dep.selector === null) {
+      return null;
+    }
+    const tsSymbol = typeChecker.getSymbolAtLocation(dep.ref.node.name);
+    if (!isSymbolWithValueDeclaration(tsSymbol)) {
+      return null;
+    }
+    let ngModule = null;
+    const moduleScopeOfDir = this.componentScopeReader.getScopeForComponent(dep.ref.node);
+    if (moduleScopeOfDir !== null && moduleScopeOfDir.kind === ComponentScopeKind.NgModule) {
+      ngModule = moduleScopeOfDir.ngModule;
+    }
+    return {
+      ref: dep.ref,
+      isComponent: dep.isComponent,
+      isStructural: dep.isStructural,
+      selector: dep.selector,
+      tsSymbol,
+      ngModule,
+      tsCompletionEntryInfos: null
+    };
+  }
+  scopeDataOfPipeMeta(typeChecker, dep) {
+    const tsSymbol = typeChecker.getSymbolAtLocation(dep.ref.node.name);
+    if (tsSymbol === void 0) {
+      return null;
+    }
+    return {
+      ref: dep.ref,
+      name: dep.name,
+      tsSymbol,
+      tsCompletionEntryInfos: null
+    };
+  }
+};
+function convertDiagnostic(diag, sourceResolver) {
+  if (!shouldReportDiagnostic(diag)) {
+    return null;
+  }
+  return translateDiagnostic(diag, sourceResolver);
+}
+var WholeProgramTypeCheckingHost = class {
+  impl;
+  constructor(impl) {
+    this.impl = impl;
+  }
+  getSourceManager(sfPath) {
+    return this.impl.getFileData(sfPath).sourceManager;
+  }
+  shouldCheckClass(node) {
+    const sfPath = absoluteFromSourceFile(node.getSourceFile());
+    const shimPath = TypeCheckShimGenerator.shimFor(sfPath);
+    const fileData = this.impl.getFileData(sfPath);
+    return !fileData.shimData.has(shimPath);
+  }
+  recordShimData(sfPath, data) {
+    const fileData = this.impl.getFileData(sfPath);
+    fileData.shimData.set(data.path, data);
+    if (data.hasInlines) {
+      fileData.hasInlines = true;
+    }
+  }
+  recordComplete(sfPath) {
+    this.impl.getFileData(sfPath).isComplete = true;
+  }
+};
+var SingleFileTypeCheckingHost = class {
+  sfPath;
+  fileData;
+  impl;
+  seenInlines = false;
+  constructor(sfPath, fileData, impl) {
+    this.sfPath = sfPath;
+    this.fileData = fileData;
+    this.impl = impl;
+  }
+  assertPath(sfPath) {
+    if (this.sfPath !== sfPath) {
+      throw new Error(`AssertionError: querying TypeCheckingHost outside of assigned file`);
+    }
+  }
+  getSourceManager(sfPath) {
+    this.assertPath(sfPath);
+    return this.fileData.sourceManager;
+  }
+  shouldCheckClass(node) {
+    if (this.sfPath !== absoluteFromSourceFile(node.getSourceFile())) {
+      return false;
+    }
+    const shimPath = TypeCheckShimGenerator.shimFor(this.sfPath);
+    return !this.fileData.shimData.has(shimPath);
+  }
+  recordShimData(sfPath, data) {
+    this.assertPath(sfPath);
+    if (data.hasInlines && !this.seenInlines) {
+      this.impl.clearAllShimDataUsingInlines();
+      this.seenInlines = true;
+    }
+    this.fileData.shimData.set(data.path, data);
+    if (data.hasInlines) {
+      this.fileData.hasInlines = true;
+    }
+  }
+  recordComplete(sfPath) {
+    this.assertPath(sfPath);
+    this.fileData.isComplete = true;
+  }
+};
+var SingleShimTypeCheckingHost = class extends SingleFileTypeCheckingHost {
+  shimPath;
+  constructor(sfPath, fileData, impl, shimPath) {
+    super(sfPath, fileData, impl);
+    this.shimPath = shimPath;
+  }
+  shouldCheckNode(node) {
+    if (this.sfPath !== absoluteFromSourceFile(node.getSourceFile())) {
+      return false;
+    }
+    const shimPath = TypeCheckShimGenerator.shimFor(this.sfPath);
+    if (shimPath !== this.shimPath) {
+      return false;
+    }
+    return !this.fileData.shimData.has(shimPath);
+  }
+};
+function getClassDeclFromSymbol(symbol, checker) {
+  const tsDecl = symbol?.getDeclarations();
+  if (tsDecl === void 0) {
+    return null;
+  }
+  let decl = tsDecl.length > 0 ? tsDecl[0] : void 0;
+  if (decl === void 0) {
+    return null;
+  }
+  if (ts64.isExportAssignment(decl)) {
+    const symbol2 = checker.getTypeAtLocation(decl.expression).getSymbol();
+    return getClassDeclFromSymbol(symbol2, checker);
+  }
+  if (ts64.isExportSpecifier(decl)) {
+    const symbol2 = checker.getTypeAtLocation(decl).getSymbol();
+    return getClassDeclFromSymbol(symbol2, checker);
+  }
+  if (isNamedClassDeclaration(decl)) {
+    return decl;
+  }
+  return null;
+}
+function getDeprecatedSuggestionDiagnostics(tsLs, program, path, fileRecord, templateTypeChecker) {
+  const sourceFile = program.getSourceFile(path);
+  if (sourceFile === void 0) {
+    return [];
+  }
+  const tsDiags = tsLs.getSuggestionDiagnostics(path).filter(isDeprecatedDiagnostics);
+  const commonTemplateDiags = tsDiags.map((diag) => {
+    return convertDiagnostic(diag, fileRecord.sourceManager);
+  });
+  const elementTagDiags = getTheElementTagDeprecatedSuggestionDiagnostics(path, program, fileRecord, tsDiags, templateTypeChecker);
+  return [...commonTemplateDiags, ...elementTagDiags];
+}
+function getTheElementTagDeprecatedSuggestionDiagnostics(shimPath, program, fileRecord, diags, templateTypeChecker) {
+  const sourceFile = program.getSourceFile(shimPath);
+  if (sourceFile === void 0) {
+    return [];
+  }
+  const typeChecker = program.getTypeChecker();
+  const nodeToDiag = /* @__PURE__ */ new Map();
+  for (const tsDiag of diags) {
+    const diagNode = getTokenAtPosition(sourceFile, tsDiag.start);
+    const nodeType = typeChecker.getTypeAtLocation(diagNode);
+    const nodeSymbolDeclarations = nodeType.getSymbol()?.declarations;
+    const decl = nodeSymbolDeclarations !== void 0 && nodeSymbolDeclarations.length > 0 ? nodeSymbolDeclarations[0] : void 0;
+    if (decl === void 0 || !ts64.isClassDeclaration(decl)) {
+      continue;
+    }
+    const directiveForDiagnostic = templateTypeChecker.getDirectiveMetadata(decl);
+    if (directiveForDiagnostic === null || !directiveForDiagnostic.isComponent) {
+      continue;
+    }
+    nodeToDiag.set(decl, tsDiag);
+  }
+  const directiveNodesInTcb = findAllMatchingNodes(sourceFile, {
+    filter: isDirectiveDeclaration
+  });
+  const templateDiagnostics = [];
+  for (const directive of directiveNodesInTcb) {
+    const directiveType = typeChecker.getTypeAtLocation(directive);
+    const directiveSymbolDeclarations = directiveType.getSymbol()?.declarations;
+    const decl = directiveSymbolDeclarations !== void 0 && directiveSymbolDeclarations.length > 0 ? directiveSymbolDeclarations[0] : void 0;
+    if (decl === void 0) {
+      continue;
+    }
+    if (!ts64.isClassDeclaration(decl)) {
+      continue;
+    }
+    const diagnostic = nodeToDiag.get(decl);
+    if (diagnostic === void 0) {
+      continue;
+    }
+    const fullMapping = getSourceMapping(
+      diagnostic.file,
+      directive.getStart(),
+      fileRecord.sourceManager,
+      /**
+       * Don't set to true, the deprecated diagnostics will be ignored if this is a diagnostics request.
+       * Only the deprecated diagnostics will be reported here.
+       */
+      // For example:
+      // var _t2 /*T:DIR*/ /*87,104*/ = _ctor1({ "name": ("") /*96,103*/ }) /*D:ignore*/;
+      // At the end of the statement, there is a comment `/*D:ignore*/` which means that this diagnostic
+      // should be ignored in diagnostics request.
+      /*isDiagnosticsRequest*/
+      false
+    );
+    if (fullMapping === null) {
+      continue;
+    }
+    const { sourceLocation, sourceMapping: templateSourceMapping, span } = fullMapping;
+    const templateDiagnostic = makeTemplateDiagnostic(sourceLocation.id, templateSourceMapping, span, diagnostic.category, diagnostic.code, diagnostic.messageText, void 0, diagnostic.reportsDeprecated !== void 0 ? {
+      reportsDeprecated: diagnostic.reportsDeprecated,
+      relatedMessages: diagnostic.relatedInformation
+    } : void 0);
+    templateDiagnostics.push(templateDiagnostic);
+  }
+  return templateDiagnostics;
+}
+function isDeprecatedDiagnostics(diag) {
+  return diag.reportsDeprecated !== void 0;
+}
+function appendOrReplaceTsEntryInfo(tsEntryInfos, newTsEntryInfo, program) {
+  const typeChecker = program.getTypeChecker();
+  const newTsEntryInfoSymbol = getSymbolFromTsEntryInfo(newTsEntryInfo, program);
+  if (newTsEntryInfoSymbol === null) {
+    return;
+  }
+  const matchedEntryIndex = tsEntryInfos.findIndex((currentTsEntryInfo) => {
+    const currentTsEntrySymbol = getSymbolFromTsEntryInfo(currentTsEntryInfo, program);
+    if (currentTsEntrySymbol === null) {
+      return false;
+    }
+    return isSymbolTypeMatch(currentTsEntrySymbol, newTsEntryInfoSymbol, typeChecker);
+  });
+  if (matchedEntryIndex === -1) {
+    tsEntryInfos.push(newTsEntryInfo);
+    return;
+  }
+  const matchedEntry = tsEntryInfos[matchedEntryIndex];
+  const matchedEntrySymbol = getSymbolFromTsEntryInfo(matchedEntry, program);
+  if (matchedEntrySymbol === null) {
+    return;
+  }
+  if (isSymbolAliasOf(matchedEntrySymbol, newTsEntryInfoSymbol, typeChecker)) {
+    tsEntryInfos[matchedEntryIndex] = newTsEntryInfo;
+    return;
+  }
+  return;
+}
+function getSymbolFromTsEntryInfo(tsInfo, program) {
+  const typeChecker = program.getTypeChecker();
+  const sf = program.getSourceFile(tsInfo.tsCompletionEntrySymbolFileName);
+  if (sf === void 0) {
+    return null;
+  }
+  const sfSymbol = typeChecker.getSymbolAtLocation(sf);
+  if (sfSymbol === void 0) {
+    return null;
+  }
+  return typeChecker.tryGetMemberInModuleExports(tsInfo.tsCompletionEntrySymbolName, sfSymbol) ?? null;
+}
+function getFirstTypeDeclarationOfSymbol(symbol, typeChecker) {
+  const type = typeChecker.getTypeOfSymbol(symbol);
+  return type.getSymbol()?.declarations?.[0];
+}
+function isSymbolTypeMatch(first, last, typeChecker) {
+  const firstTypeNode = getFirstTypeDeclarationOfSymbol(first, typeChecker);
+  const lastTypeNode = getFirstTypeDeclarationOfSymbol(last, typeChecker);
+  return firstTypeNode === lastTypeNode && firstTypeNode !== void 0;
+}
+
+// packages/compiler-cli/src/ngtsc/annotations/directive/src/handler.js
+var FIELD_DECORATORS = [
+  "Input",
+  "Output",
+  "ViewChild",
+  "ViewChildren",
+  "ContentChild",
+  "ContentChildren",
+  "HostBinding",
+  "HostListener"
+];
+var LIFECYCLE_HOOKS = /* @__PURE__ */ new Set([
+  "ngOnChanges",
+  "ngOnInit",
+  "ngOnDestroy",
+  "ngDoCheck",
+  "ngAfterViewInit",
+  "ngAfterViewChecked",
+  "ngAfterContentInit",
+  "ngAfterContentChecked"
+]);
+var DirectiveDecoratorHandler = class {
+  reflector;
+  evaluator;
+  metaRegistry;
+  scopeRegistry;
+  metaReader;
+  injectableRegistry;
+  refEmitter;
+  referencesRegistry;
+  isCore;
+  strictCtorDeps;
+  semanticDepGraphUpdater;
+  annotateForClosureCompiler;
+  perf;
+  importTracker;
+  includeClassMetadata;
+  typeCheckScopeRegistry;
+  compilationMode;
+  jitDeclarationRegistry;
+  resourceRegistry;
+  strictStandalone;
+  implicitStandaloneValue;
+  usePoisonedData;
+  typeCheckHostBindings;
+  emitDeclarationOnly;
+  constructor(reflector, evaluator, metaRegistry, scopeRegistry, metaReader, injectableRegistry, refEmitter, referencesRegistry, isCore, strictCtorDeps, semanticDepGraphUpdater, annotateForClosureCompiler, perf, importTracker, includeClassMetadata, typeCheckScopeRegistry, compilationMode, jitDeclarationRegistry, resourceRegistry, strictStandalone, implicitStandaloneValue, usePoisonedData, typeCheckHostBindings, emitDeclarationOnly) {
+    this.reflector = reflector;
+    this.evaluator = evaluator;
+    this.metaRegistry = metaRegistry;
+    this.scopeRegistry = scopeRegistry;
+    this.metaReader = metaReader;
+    this.injectableRegistry = injectableRegistry;
+    this.refEmitter = refEmitter;
+    this.referencesRegistry = referencesRegistry;
+    this.isCore = isCore;
+    this.strictCtorDeps = strictCtorDeps;
+    this.semanticDepGraphUpdater = semanticDepGraphUpdater;
+    this.annotateForClosureCompiler = annotateForClosureCompiler;
+    this.perf = perf;
+    this.importTracker = importTracker;
+    this.includeClassMetadata = includeClassMetadata;
+    this.typeCheckScopeRegistry = typeCheckScopeRegistry;
+    this.compilationMode = compilationMode;
+    this.jitDeclarationRegistry = jitDeclarationRegistry;
+    this.resourceRegistry = resourceRegistry;
+    this.strictStandalone = strictStandalone;
+    this.implicitStandaloneValue = implicitStandaloneValue;
+    this.usePoisonedData = usePoisonedData;
+    this.typeCheckHostBindings = typeCheckHostBindings;
+    this.emitDeclarationOnly = emitDeclarationOnly;
+  }
+  precedence = HandlerPrecedence.PRIMARY;
+  name = "DirectiveDecoratorHandler";
+  detect(node, decorators) {
+    if (!decorators) {
+      const angularField = this.findClassFieldWithAngularFeatures(node);
+      return angularField ? { trigger: angularField.node, decorator: null, metadata: null } : void 0;
+    } else {
+      const decorator = findAngularDecorator(decorators, "Directive", this.isCore);
+      return decorator ? { trigger: decorator.node, decorator, metadata: decorator } : void 0;
+    }
+  }
+  analyze(node, decorator) {
+    if (decorator === null) {
+      if (this.isCore) {
+        return {};
+      }
+      return { diagnostics: [getUndecoratedClassWithAngularFeaturesDiagnostic(node)] };
+    }
+    this.perf.eventCount(PerfEvent.AnalyzeDirective);
+    const directiveResult = extractDirectiveMetadata(
+      node,
+      decorator,
+      this.reflector,
+      this.importTracker,
+      this.evaluator,
+      this.refEmitter,
+      this.referencesRegistry,
+      this.isCore,
+      this.annotateForClosureCompiler,
+      this.compilationMode,
+      /* defaultSelector */
+      null,
+      this.strictStandalone,
+      this.implicitStandaloneValue,
+      this.emitDeclarationOnly
+    );
+    if (directiveResult.jitForced) {
+      this.jitDeclarationRegistry.jitDeclarations.add(node);
+      return {};
+    }
+    const analysis = directiveResult.metadata;
+    let providersRequiringFactory = null;
+    if (directiveResult !== void 0 && directiveResult.decorator.has("providers")) {
+      providersRequiringFactory = resolveProvidersRequiringFactory(directiveResult.decorator.get("providers"), this.reflector, this.evaluator);
+    }
+    return {
+      analysis: {
+        inputs: directiveResult.inputs,
+        inputFieldNamesFromMetadataArray: directiveResult.inputFieldNamesFromMetadataArray,
+        outputs: directiveResult.outputs,
+        meta: analysis,
+        hostDirectives: directiveResult.hostDirectives,
+        rawHostDirectives: directiveResult.rawHostDirectives,
+        classMetadata: this.includeClassMetadata ? extractClassMetadata(node, this.reflector, this.isCore, this.annotateForClosureCompiler) : null,
+        baseClass: readBaseClass(node, this.reflector, this.evaluator),
+        typeCheckMeta: extractDirectiveTypeCheckMeta(node, directiveResult.inputs, this.reflector),
+        providersRequiringFactory,
+        isPoisoned: false,
+        isStructural: directiveResult.isStructural,
+        decorator: decorator?.node ?? null,
+        hostBindingNodes: directiveResult.hostBindingNodes,
+        resources: {
+          template: null,
+          styles: null,
+          hostBindings: extractHostBindingResources(directiveResult.hostBindingNodes)
+        }
+      }
+    };
+  }
+  symbol(node, analysis) {
+    const typeParameters = extractSemanticTypeParameters(node);
+    return new DirectiveSymbol(node, analysis.meta.selector, analysis.inputs, analysis.outputs, analysis.meta.exportAs, analysis.typeCheckMeta, typeParameters);
+  }
+  register(node, analysis) {
+    const ref = new Reference(node);
+    this.metaRegistry.registerDirectiveMetadata({
+      kind: MetaKind.Directive,
+      matchSource: MatchSource.Selector,
+      ref,
+      name: node.name.text,
+      selector: analysis.meta.selector,
+      exportAs: analysis.meta.exportAs,
+      inputs: analysis.inputs,
+      inputFieldNamesFromMetadataArray: analysis.inputFieldNamesFromMetadataArray,
+      outputs: analysis.outputs,
+      queries: analysis.meta.queries.map((query) => query.propertyName),
+      isComponent: false,
+      baseClass: analysis.baseClass,
+      hostDirectives: analysis.hostDirectives,
+      ...analysis.typeCheckMeta,
+      isPoisoned: analysis.isPoisoned,
+      isStructural: analysis.isStructural,
+      animationTriggerNames: null,
+      isStandalone: analysis.meta.isStandalone,
+      isSignal: analysis.meta.isSignal,
+      imports: null,
+      rawImports: null,
+      deferredImports: null,
+      schemas: null,
+      ngContentSelectors: null,
+      decorator: analysis.decorator,
+      preserveWhitespaces: false,
+      // Directives analyzed within our own compilation are not _assumed_ to export providers.
+      // Instead, we statically analyze their imports to make a direct determination.
+      assumedToExportProviders: false,
+      isExplicitlyDeferred: false,
+      selectorlessEnabled: false,
+      localReferencedSymbols: null
+    });
+    this.resourceRegistry.registerResources(analysis.resources, node);
+    this.injectableRegistry.registerInjectable(node, {
+      ctorDeps: analysis.meta.deps
+    });
+  }
+  typeCheck(ctx, node, meta) {
+    if (!this.typeCheckHostBindings) {
+      return;
+    }
+    if (!ts65.isClassDeclaration(node) || meta.isPoisoned && !this.usePoisonedData) {
+      return;
+    }
+    const ref = new Reference(node);
+    const scope = this.typeCheckScopeRegistry.getTypeCheckScope(ref);
+    if (scope.isPoisoned && !this.usePoisonedData) {
+      return;
+    }
+    const hostElement = createHostElement("directive", meta.meta.selector, node, meta.hostBindingNodes.literal, meta.hostBindingNodes.bindingDecorators, meta.hostBindingNodes.listenerDecorators);
+    if (hostElement !== null && scope.directivesOnHost !== null) {
+      const binder = new R3TargetBinder(scope.matcher);
+      const hostBindingsContext = {
+        node: hostElement,
+        directives: scope.directivesOnHost,
+        sourceMapping: { type: "direct", node }
+      };
+      ctx.addDirective(ref, binder, scope.schemas, null, hostBindingsContext, meta.meta.isStandalone);
+    }
+  }
+  resolve(node, analysis, symbol) {
+    if (this.compilationMode === CompilationMode.LOCAL) {
+      return {};
+    }
+    if (this.semanticDepGraphUpdater !== null && analysis.baseClass instanceof Reference) {
+      symbol.baseClass = this.semanticDepGraphUpdater.getSymbol(analysis.baseClass.node);
+    }
+    const diagnostics = [];
+    if (analysis.providersRequiringFactory !== null && analysis.meta.providers instanceof WrappedNodeExpr9) {
+      const providerDiagnostics = getProviderDiagnostics(analysis.providersRequiringFactory, analysis.meta.providers.node, this.injectableRegistry);
+      diagnostics.push(...providerDiagnostics);
+    }
+    const directiveDiagnostics = getDirectiveDiagnostics(node, this.injectableRegistry, this.evaluator, this.reflector, this.scopeRegistry, this.strictCtorDeps, "Directive");
+    if (directiveDiagnostics !== null) {
+      diagnostics.push(...directiveDiagnostics);
+    }
+    const hostDirectivesDiagnotics = analysis.hostDirectives && analysis.rawHostDirectives ? validateHostDirectives(analysis.rawHostDirectives, analysis.hostDirectives, this.metaReader) : null;
+    if (hostDirectivesDiagnotics !== null) {
+      diagnostics.push(...hostDirectivesDiagnotics);
+    }
+    if (diagnostics.length > 0) {
+      return { diagnostics };
+    }
+    return { data: {} };
+  }
+  compileFull(node, analysis, resolution, pool) {
+    const fac = compileNgFactoryDefField(toFactoryMetadata(analysis.meta, FactoryTarget.Directive));
+    const def = compileDirectiveFromMetadata(analysis.meta, pool, makeBindingParser2());
+    const inputTransformFields = compileInputTransformFields(analysis.inputs);
+    const classMetadata = analysis.classMetadata !== null ? compileClassMetadata(analysis.classMetadata).toStmt() : null;
+    return compileResults(
+      fac,
+      def,
+      classMetadata,
+      "\u0275dir",
+      inputTransformFields,
+      null
+      /* deferrableImports */
+    );
+  }
+  compilePartial(node, analysis, resolution) {
+    const fac = compileDeclareFactory(toFactoryMetadata(analysis.meta, FactoryTarget.Directive));
+    const def = compileDeclareDirectiveFromMetadata(analysis.meta);
+    const inputTransformFields = compileInputTransformFields(analysis.inputs);
+    const classMetadata = analysis.classMetadata !== null ? compileDeclareClassMetadata(analysis.classMetadata).toStmt() : null;
+    return compileResults(
+      fac,
+      def,
+      classMetadata,
+      "\u0275dir",
+      inputTransformFields,
+      null
+      /* deferrableImports */
+    );
+  }
+  compileLocal(node, analysis, resolution, pool) {
+    const fac = compileNgFactoryDefField(toFactoryMetadata(analysis.meta, FactoryTarget.Directive));
+    const def = compileDirectiveFromMetadata(analysis.meta, pool, makeBindingParser2());
+    const inputTransformFields = compileInputTransformFields(analysis.inputs);
+    const classMetadata = analysis.classMetadata !== null ? compileClassMetadata(analysis.classMetadata).toStmt() : null;
+    return compileResults(
+      fac,
+      def,
+      classMetadata,
+      "\u0275dir",
+      inputTransformFields,
+      null
+      /* deferrableImports */
+    );
+  }
+  /**
+   * Checks if a given class uses Angular features and returns the TypeScript node
+   * that indicated the usage. Classes are considered using Angular features if they
+   * contain class members that are either decorated with a known Angular decorator,
+   * or if they correspond to a known Angular lifecycle hook.
+   */
+  findClassFieldWithAngularFeatures(node) {
+    return this.reflector.getMembersOfClass(node).find((member) => {
+      if (!member.isStatic && member.kind === ClassMemberKind.Method && LIFECYCLE_HOOKS.has(member.name)) {
+        return true;
+      }
+      if (member.decorators) {
+        return member.decorators.some((decorator) => FIELD_DECORATORS.some((decoratorName) => isAngularDecorator(decorator, decoratorName, this.isCore)));
+      }
+      return false;
+    });
+  }
+};
+
+// packages/compiler-cli/src/ngtsc/annotations/ng_module/src/handler.js
+import { compileClassMetadata as compileClassMetadata2, compileDeclareClassMetadata as compileDeclareClassMetadata2, compileDeclareInjectorFromMetadata, compileDeclareNgModuleFromMetadata, compileInjector, compileNgModule, ExternalExpr as ExternalExpr9, FactoryTarget as FactoryTarget2, FunctionExpr, InvokeFunctionExpr, LiteralArrayExpr as LiteralArrayExpr2, R3Identifiers as R3Identifiers5, R3NgModuleMetadataKind, R3SelectorScopeMode, ReturnStatement, WrappedNodeExpr as WrappedNodeExpr10 } from "@angular/compiler";
+import ts67 from "typescript";
+
+// packages/compiler-cli/src/ngtsc/annotations/ng_module/src/module_with_providers.js
+import ts66 from "typescript";
+function createModuleWithProvidersResolver(reflector, isCore) {
+  function _reflectModuleFromTypeParam(type, node) {
+    if (!ts66.isTypeReferenceNode(type)) {
+      return null;
+    }
+    const typeName = type && (ts66.isIdentifier(type.typeName) && type.typeName || ts66.isQualifiedName(type.typeName) && type.typeName.right) || null;
+    if (typeName === null) {
+      return null;
+    }
+    const id = reflector.getImportOfIdentifier(typeName);
+    if (id === null || id.name !== "ModuleWithProviders") {
+      return null;
+    }
+    if (!isCore && id.from !== "@angular/core") {
+      return null;
+    }
+    if (type.typeArguments === void 0 || type.typeArguments.length !== 1) {
+      const parent = ts66.isMethodDeclaration(node) && ts66.isClassDeclaration(node.parent) ? node.parent : null;
+      const symbolName = (parent && parent.name ? parent.name.getText() + "." : "") + (node.name ? node.name.getText() : "anonymous");
+      throw new FatalDiagnosticError(ErrorCode.NGMODULE_MODULE_WITH_PROVIDERS_MISSING_GENERIC, type, `${symbolName} returns a ModuleWithProviders type without a generic type argument. Please add a generic type argument to the ModuleWithProviders type. If this occurrence is in library code you don't control, please contact the library authors.`);
+    }
+    const arg = type.typeArguments[0];
+    return typeNodeToValueExpr(arg);
+  }
+  function _reflectModuleFromLiteralType(type) {
+    if (!ts66.isIntersectionTypeNode(type)) {
+      return null;
+    }
+    for (const t of type.types) {
+      if (ts66.isTypeLiteralNode(t)) {
+        for (const m of t.members) {
+          const ngModuleType = ts66.isPropertySignature(m) && ts66.isIdentifier(m.name) && m.name.text === "ngModule" && m.type || null;
+          let ngModuleExpression = null;
+          if (ngModuleType !== null && ts66.isTypeQueryNode(ngModuleType)) {
+            ngModuleExpression = entityNameToValue(ngModuleType.exprName);
+          } else if (ngModuleType !== null) {
+            ngModuleExpression = typeNodeToValueExpr(ngModuleType);
+          }
+          if (ngModuleExpression) {
+            return ngModuleExpression;
+          }
+        }
+      }
+    }
+    return null;
+  }
+  return (fn, callExpr, resolve2, unresolvable) => {
+    const rawType = fn.node.type;
+    if (rawType === void 0) {
+      return unresolvable;
+    }
+    const type = _reflectModuleFromTypeParam(rawType, fn.node) ?? _reflectModuleFromLiteralType(rawType);
+    if (type === null) {
+      return unresolvable;
+    }
+    const ngModule = resolve2(type);
+    if (!(ngModule instanceof Reference) || !isNamedClassDeclaration(ngModule.node)) {
+      return unresolvable;
+    }
+    return new SyntheticValue({
+      ngModule,
+      mwpCall: callExpr
+    });
+  };
+}
+function isResolvedModuleWithProviders(sv) {
+  return typeof sv.value === "object" && sv.value != null && sv.value.hasOwnProperty("ngModule") && sv.value.hasOwnProperty("mwpCall");
+}
+
+// packages/compiler-cli/src/ngtsc/annotations/ng_module/src/handler.js
+var NgModuleSymbol = class _NgModuleSymbol extends SemanticSymbol {
+  hasProviders;
+  remotelyScopedComponents = [];
+  /**
+   * `SemanticSymbol`s of the transitive imports of this NgModule which came from imported
+   * standalone components.
+   *
+   * Standalone components are excluded/included in the `InjectorDef` emit output of the NgModule
+   * based on whether the compiler can prove that their transitive imports may contain exported
+   * providers, so a change in this set of symbols may affect the compilation output of this
+   * NgModule.
+   */
+  transitiveImportsFromStandaloneComponents = /* @__PURE__ */ new Set();
+  constructor(decl, hasProviders) {
+    super(decl);
+    this.hasProviders = hasProviders;
+  }
+  isPublicApiAffected(previousSymbol) {
+    if (!(previousSymbol instanceof _NgModuleSymbol)) {
+      return true;
+    }
+    if (previousSymbol.hasProviders !== this.hasProviders) {
+      return true;
+    }
+    return false;
+  }
+  isEmitAffected(previousSymbol) {
+    if (!(previousSymbol instanceof _NgModuleSymbol)) {
+      return true;
+    }
+    if (previousSymbol.remotelyScopedComponents.length !== this.remotelyScopedComponents.length) {
+      return true;
+    }
+    for (const currEntry of this.remotelyScopedComponents) {
+      const prevEntry = previousSymbol.remotelyScopedComponents.find((prevEntry2) => {
+        return isSymbolEqual(prevEntry2.component, currEntry.component);
+      });
+      if (prevEntry === void 0) {
+        return true;
+      }
+      if (!isArrayEqual(currEntry.usedDirectives, prevEntry.usedDirectives, isReferenceEqual)) {
+        return true;
+      }
+      if (!isArrayEqual(currEntry.usedPipes, prevEntry.usedPipes, isReferenceEqual)) {
+        return true;
+      }
+    }
+    if (previousSymbol.transitiveImportsFromStandaloneComponents.size !== this.transitiveImportsFromStandaloneComponents.size) {
+      return true;
+    }
+    const previousImports = Array.from(previousSymbol.transitiveImportsFromStandaloneComponents);
+    for (const transitiveImport of this.transitiveImportsFromStandaloneComponents) {
+      const prevEntry = previousImports.find((prevEntry2) => isSymbolEqual(prevEntry2, transitiveImport));
+      if (prevEntry === void 0) {
+        return true;
+      }
+      if (transitiveImport.isPublicApiAffected(prevEntry)) {
+        return true;
+      }
+    }
+    return false;
+  }
+  isTypeCheckApiAffected(previousSymbol) {
+    if (!(previousSymbol instanceof _NgModuleSymbol)) {
+      return true;
+    }
+    return false;
+  }
+  addRemotelyScopedComponent(component, usedDirectives, usedPipes) {
+    this.remotelyScopedComponents.push({ component, usedDirectives, usedPipes });
+  }
+  addTransitiveImportFromStandaloneComponent(importedSymbol) {
+    this.transitiveImportsFromStandaloneComponents.add(importedSymbol);
+  }
+};
+var NgModuleDecoratorHandler = class {
+  reflector;
+  evaluator;
+  metaReader;
+  metaRegistry;
+  scopeRegistry;
+  referencesRegistry;
+  exportedProviderStatusResolver;
+  semanticDepGraphUpdater;
+  isCore;
+  refEmitter;
+  annotateForClosureCompiler;
+  onlyPublishPublicTypings;
+  injectableRegistry;
+  perf;
+  includeClassMetadata;
+  includeSelectorScope;
+  compilationMode;
+  localCompilationExtraImportsTracker;
+  jitDeclarationRegistry;
+  emitDeclarationOnly;
+  constructor(reflector, evaluator, metaReader, metaRegistry, scopeRegistry, referencesRegistry, exportedProviderStatusResolver, semanticDepGraphUpdater, isCore, refEmitter, annotateForClosureCompiler, onlyPublishPublicTypings, injectableRegistry, perf, includeClassMetadata, includeSelectorScope, compilationMode, localCompilationExtraImportsTracker, jitDeclarationRegistry, emitDeclarationOnly) {
+    this.reflector = reflector;
+    this.evaluator = evaluator;
+    this.metaReader = metaReader;
+    this.metaRegistry = metaRegistry;
+    this.scopeRegistry = scopeRegistry;
+    this.referencesRegistry = referencesRegistry;
+    this.exportedProviderStatusResolver = exportedProviderStatusResolver;
+    this.semanticDepGraphUpdater = semanticDepGraphUpdater;
+    this.isCore = isCore;
+    this.refEmitter = refEmitter;
+    this.annotateForClosureCompiler = annotateForClosureCompiler;
+    this.onlyPublishPublicTypings = onlyPublishPublicTypings;
+    this.injectableRegistry = injectableRegistry;
+    this.perf = perf;
+    this.includeClassMetadata = includeClassMetadata;
+    this.includeSelectorScope = includeSelectorScope;
+    this.compilationMode = compilationMode;
+    this.localCompilationExtraImportsTracker = localCompilationExtraImportsTracker;
+    this.jitDeclarationRegistry = jitDeclarationRegistry;
+    this.emitDeclarationOnly = emitDeclarationOnly;
+  }
+  precedence = HandlerPrecedence.PRIMARY;
+  name = "NgModuleDecoratorHandler";
+  detect(node, decorators) {
+    if (!decorators) {
+      return void 0;
+    }
+    const decorator = findAngularDecorator(decorators, "NgModule", this.isCore);
+    if (decorator !== void 0) {
+      return {
+        trigger: decorator.node,
+        decorator,
+        metadata: decorator
+      };
+    } else {
+      return void 0;
+    }
+  }
+  analyze(node, decorator) {
+    this.perf.eventCount(PerfEvent.AnalyzeNgModule);
+    const name = node.name.text;
+    if (decorator.args === null || decorator.args.length > 1) {
+      throw new FatalDiagnosticError(ErrorCode.DECORATOR_ARITY_WRONG, decorator.node, `Incorrect number of arguments to @NgModule decorator`);
+    }
+    const meta = decorator.args.length === 1 ? unwrapExpression(decorator.args[0]) : ts67.factory.createObjectLiteralExpression([]);
+    if (!ts67.isObjectLiteralExpression(meta)) {
+      throw new FatalDiagnosticError(ErrorCode.DECORATOR_ARG_NOT_LITERAL, meta, "@NgModule argument must be an object literal");
+    }
+    const ngModule = reflectObjectLiteral(meta);
+    if (ngModule.has("jit")) {
+      this.jitDeclarationRegistry.jitDeclarations.add(node);
+      return {};
+    }
+    const forwardRefResolver = createForwardRefResolver(this.isCore);
+    const moduleResolvers = combineResolvers([
+      createModuleWithProvidersResolver(this.reflector, this.isCore),
+      forwardRefResolver
+    ]);
+    const allowUnresolvedReferences = this.compilationMode === CompilationMode.LOCAL && !this.emitDeclarationOnly;
+    const diagnostics = [];
+    let declarationRefs = [];
+    const rawDeclarations = ngModule.get("declarations") ?? null;
+    if (rawDeclarations !== null) {
+      const declarationMeta = this.evaluator.evaluate(rawDeclarations, forwardRefResolver);
+      declarationRefs = this.resolveTypeList(rawDeclarations, declarationMeta, name, "declarations", 0, allowUnresolvedReferences).references;
+      for (const ref of declarationRefs) {
+        if (ref.node.getSourceFile().isDeclarationFile) {
+          const errorNode = ref.getOriginForDiagnostics(rawDeclarations);
+          diagnostics.push(makeDiagnostic(ErrorCode.NGMODULE_INVALID_DECLARATION, errorNode, `Cannot declare '${ref.node.name.text}' in an NgModule as it's not a part of the current compilation.`, [makeRelatedInformation(ref.node.name, `'${ref.node.name.text}' is declared here.`)]));
+        }
+      }
+    }
+    if (diagnostics.length > 0) {
+      return { diagnostics };
+    }
+    let importRefs = [];
+    let rawImports = ngModule.get("imports") ?? null;
+    if (rawImports !== null) {
+      const importsMeta = this.evaluator.evaluate(rawImports, moduleResolvers);
+      const result = this.resolveTypeList(rawImports, importsMeta, name, "imports", 0, allowUnresolvedReferences);
+      if (this.compilationMode === CompilationMode.LOCAL && this.localCompilationExtraImportsTracker !== null) {
+        for (const d of result.dynamicValues) {
+          this.localCompilationExtraImportsTracker.addGlobalImportFromIdentifier(d.node);
+        }
+      }
+      importRefs = result.references;
+    }
+    let exportRefs = [];
+    const rawExports = ngModule.get("exports") ?? null;
+    if (rawExports !== null) {
+      const exportsMeta = this.evaluator.evaluate(rawExports, moduleResolvers);
+      exportRefs = this.resolveTypeList(rawExports, exportsMeta, name, "exports", 0, allowUnresolvedReferences).references;
+      this.referencesRegistry.add(node, ...exportRefs);
+    }
+    let bootstrapRefs = [];
+    const rawBootstrap = ngModule.get("bootstrap") ?? null;
+    if (!allowUnresolvedReferences && rawBootstrap !== null) {
+      const bootstrapMeta = this.evaluator.evaluate(rawBootstrap, forwardRefResolver);
+      bootstrapRefs = this.resolveTypeList(
+        rawBootstrap,
+        bootstrapMeta,
+        name,
+        "bootstrap",
+        0,
+        /* allowUnresolvedReferences */
+        false
+      ).references;
+      for (const ref of bootstrapRefs) {
+        const dirMeta = this.metaReader.getDirectiveMetadata(ref);
+        if (dirMeta?.isStandalone) {
+          diagnostics.push(makeStandaloneBootstrapDiagnostic(node, ref, rawBootstrap));
+        }
+      }
+    }
+    let schemas;
+    try {
+      schemas = this.compilationMode !== CompilationMode.LOCAL && ngModule.has("schemas") ? extractSchemas(ngModule.get("schemas"), this.evaluator, "NgModule") : [];
+    } catch (e) {
+      if (e instanceof FatalDiagnosticError) {
+        diagnostics.push(e.toDiagnostic());
+        schemas = [];
+      } else {
+        throw e;
+      }
+    }
+    let id = null;
+    if (ngModule.has("id")) {
+      const idExpr = ngModule.get("id");
+      if (!isModuleIdExpression(idExpr)) {
+        id = new WrappedNodeExpr10(idExpr);
+      } else {
+        const diag = makeDiagnostic(ErrorCode.WARN_NGMODULE_ID_UNNECESSARY, idExpr, `Using 'module.id' for NgModule.id is a common anti-pattern that is ignored by the Angular compiler.`);
+        diag.category = ts67.DiagnosticCategory.Warning;
+        diagnostics.push(diag);
+      }
+    }
+    const valueContext = node.getSourceFile();
+    const exportedNodes = new Set(exportRefs.map((ref) => ref.node));
+    const declarations = [];
+    const exportedDeclarations = [];
+    const bootstrap = bootstrapRefs.map((bootstrap2) => this._toR3Reference(bootstrap2.getOriginForDiagnostics(meta, node.name), bootstrap2, valueContext));
+    for (const ref of declarationRefs) {
+      const decl = this._toR3Reference(ref.getOriginForDiagnostics(meta, node.name), ref, valueContext);
+      declarations.push(decl);
+      if (exportedNodes.has(ref.node)) {
+        exportedDeclarations.push(decl.type);
+      }
+    }
+    const imports = importRefs.map((imp) => this._toR3Reference(imp.getOriginForDiagnostics(meta, node.name), imp, valueContext));
+    const exports = exportRefs.map((exp) => this._toR3Reference(exp.getOriginForDiagnostics(meta, node.name), exp, valueContext));
+    const isForwardReference = (ref) => isExpressionForwardReference(ref.value, node.name, valueContext);
+    const containsForwardDecls = bootstrap.some(isForwardReference) || declarations.some(isForwardReference) || imports.some(isForwardReference) || exports.some(isForwardReference);
+    const type = wrapTypeReference(this.reflector, node);
+    let ngModuleMetadata;
+    if (allowUnresolvedReferences) {
+      ngModuleMetadata = {
+        kind: R3NgModuleMetadataKind.Local,
+        type,
+        bootstrapExpression: rawBootstrap ? new WrappedNodeExpr10(rawBootstrap) : null,
+        declarationsExpression: rawDeclarations ? new WrappedNodeExpr10(rawDeclarations) : null,
+        exportsExpression: rawExports ? new WrappedNodeExpr10(rawExports) : null,
+        importsExpression: rawImports ? new WrappedNodeExpr10(rawImports) : null,
+        id,
+        // Use `ɵɵsetNgModuleScope` to patch selector scopes onto the generated definition in a
+        // tree-shakeable way.
+        selectorScopeMode: R3SelectorScopeMode.SideEffect,
+        // TODO: to be implemented as a part of FW-1004.
+        schemas: []
+      };
+    } else {
+      ngModuleMetadata = {
+        kind: R3NgModuleMetadataKind.Global,
+        type,
+        bootstrap,
+        declarations,
+        publicDeclarationTypes: this.onlyPublishPublicTypings ? exportedDeclarations : null,
+        exports,
+        imports,
+        // Imported types are generally private, so include them unless restricting the .d.ts emit
+        // to only public types.
+        includeImportTypes: !this.onlyPublishPublicTypings,
+        containsForwardDecls,
+        id,
+        // Use `ɵɵsetNgModuleScope` to patch selector scopes onto the generated definition in a
+        // tree-shakeable way.
+        selectorScopeMode: this.includeSelectorScope ? R3SelectorScopeMode.SideEffect : R3SelectorScopeMode.Omit,
+        // TODO: to be implemented as a part of FW-1004.
+        schemas: []
+      };
+    }
+    const rawProviders = ngModule.has("providers") ? ngModule.get("providers") : null;
+    let wrappedProviders = null;
+    if (rawProviders !== null && (!ts67.isArrayLiteralExpression(rawProviders) || rawProviders.elements.length > 0)) {
+      wrappedProviders = new WrappedNodeExpr10(this.annotateForClosureCompiler ? wrapFunctionExpressionsInParens(rawProviders) : rawProviders);
+    }
+    const topLevelImports = [];
+    if (!allowUnresolvedReferences && ngModule.has("imports")) {
+      const rawImports2 = unwrapExpression(ngModule.get("imports"));
+      let topLevelExpressions = [];
+      if (ts67.isArrayLiteralExpression(rawImports2)) {
+        for (const element of rawImports2.elements) {
+          if (ts67.isSpreadElement(element)) {
+            topLevelExpressions.push(element.expression);
+            continue;
+          }
+          topLevelExpressions.push(element);
+        }
+      } else {
+        topLevelExpressions.push(rawImports2);
+      }
+      let absoluteIndex = 0;
+      for (const importExpr of topLevelExpressions) {
+        const resolved = this.evaluator.evaluate(importExpr, moduleResolvers);
+        const { references, hasModuleWithProviders } = this.resolveTypeList(
+          importExpr,
+          [resolved],
+          node.name.text,
+          "imports",
+          absoluteIndex,
+          /* allowUnresolvedReferences */
+          false
+        );
+        absoluteIndex += references.length;
+        topLevelImports.push({
+          expression: importExpr,
+          resolvedReferences: references,
+          hasModuleWithProviders
+        });
+      }
+    }
+    const injectorMetadata = {
+      name,
+      type,
+      providers: wrappedProviders,
+      imports: []
+    };
+    if (allowUnresolvedReferences) {
+      for (const exp of [rawImports, rawExports]) {
+        if (exp === null) {
+          continue;
+        }
+        if (ts67.isArrayLiteralExpression(exp)) {
+          if (exp.elements) {
+            injectorMetadata.imports.push(...exp.elements.map((n2) => new WrappedNodeExpr10(n2)));
+          }
+        } else {
+          injectorMetadata.imports.push(new WrappedNodeExpr10(exp));
+        }
+      }
+    }
+    const factoryMetadata = {
+      name,
+      type,
+      typeArgumentCount: 0,
+      deps: getValidConstructorDependencies(node, this.reflector, this.isCore),
+      target: FactoryTarget2.NgModule
+    };
+    const remoteScopesMayRequireCycleProtection = declarationRefs.some(isSyntheticReference) || importRefs.some(isSyntheticReference);
+    return {
+      diagnostics: diagnostics.length > 0 ? diagnostics : void 0,
+      analysis: {
+        id,
+        schemas,
+        mod: ngModuleMetadata,
+        inj: injectorMetadata,
+        fac: factoryMetadata,
+        declarations: declarationRefs,
+        rawDeclarations,
+        imports: topLevelImports,
+        rawImports,
+        importRefs,
+        exports: exportRefs,
+        rawExports,
+        providers: rawProviders,
+        providersRequiringFactory: rawProviders ? resolveProvidersRequiringFactory(rawProviders, this.reflector, this.evaluator) : null,
+        classMetadata: this.includeClassMetadata ? extractClassMetadata(node, this.reflector, this.isCore, this.annotateForClosureCompiler) : null,
+        factorySymbolName: node.name.text,
+        remoteScopesMayRequireCycleProtection,
+        decorator: decorator?.node ?? null
+      }
+    };
+  }
+  symbol(node, analysis) {
+    return new NgModuleSymbol(node, analysis.providers !== null);
+  }
+  register(node, analysis) {
+    this.metaRegistry.registerNgModuleMetadata({
+      kind: MetaKind.NgModule,
+      ref: new Reference(node),
+      schemas: analysis.schemas,
+      declarations: analysis.declarations,
+      imports: analysis.importRefs,
+      exports: analysis.exports,
+      rawDeclarations: analysis.rawDeclarations,
+      rawImports: analysis.rawImports,
+      rawExports: analysis.rawExports,
+      decorator: analysis.decorator,
+      mayDeclareProviders: analysis.providers !== null,
+      isPoisoned: false
+    });
+    this.injectableRegistry.registerInjectable(node, {
+      ctorDeps: analysis.fac.deps
+    });
+  }
+  resolve(node, analysis) {
+    if (this.compilationMode === CompilationMode.LOCAL) {
+      return {};
+    }
+    const scope = this.scopeRegistry.getScopeOfModule(node);
+    const diagnostics = [];
+    const scopeDiagnostics = this.scopeRegistry.getDiagnosticsOfModule(node);
+    if (scopeDiagnostics !== null) {
+      diagnostics.push(...scopeDiagnostics);
+    }
+    if (analysis.providersRequiringFactory !== null) {
+      const providerDiagnostics = getProviderDiagnostics(analysis.providersRequiringFactory, analysis.providers, this.injectableRegistry);
+      diagnostics.push(...providerDiagnostics);
+    }
+    const data = {
+      injectorImports: []
+    };
+    for (const topLevelImport of analysis.imports) {
+      if (topLevelImport.hasModuleWithProviders) {
+        data.injectorImports.push(new WrappedNodeExpr10(topLevelImport.expression));
+        continue;
+      }
+      const refsToEmit = [];
+      let symbol = null;
+      if (this.semanticDepGraphUpdater !== null) {
+        const sym = this.semanticDepGraphUpdater.getSymbol(node);
+        if (sym instanceof NgModuleSymbol) {
+          symbol = sym;
+        }
+      }
+      for (const ref of topLevelImport.resolvedReferences) {
+        const dirMeta = this.metaReader.getDirectiveMetadata(ref);
+        if (dirMeta !== null) {
+          if (!dirMeta.isComponent) {
+            continue;
+          }
+          const mayExportProviders = this.exportedProviderStatusResolver.mayExportProviders(dirMeta.ref, (importRef) => {
+            if (symbol !== null && this.semanticDepGraphUpdater !== null) {
+              const importSymbol = this.semanticDepGraphUpdater.getSymbol(importRef.node);
+              symbol.addTransitiveImportFromStandaloneComponent(importSymbol);
+            }
+          });
+          if (!mayExportProviders) {
+            continue;
+          }
+        }
+        const pipeMeta = dirMeta === null ? this.metaReader.getPipeMetadata(ref) : null;
+        if (pipeMeta !== null) {
+          continue;
+        }
+        refsToEmit.push(ref);
+      }
+      if (refsToEmit.length === topLevelImport.resolvedReferences.length) {
+        data.injectorImports.push(new WrappedNodeExpr10(topLevelImport.expression));
+      } else {
+        const context = node.getSourceFile();
+        for (const ref of refsToEmit) {
+          const emittedRef = this.refEmitter.emit(ref, context);
+          assertSuccessfulReferenceEmit(emittedRef, topLevelImport.expression, "class");
+          data.injectorImports.push(emittedRef.expression);
+        }
+      }
+    }
+    if (scope !== null && !scope.compilation.isPoisoned) {
+      const context = getSourceFile(node);
+      for (const exportRef of analysis.exports) {
+        if (isNgModule(exportRef.node, scope.compilation)) {
+          const type = this.refEmitter.emit(exportRef, context);
+          assertSuccessfulReferenceEmit(type, node, "NgModule");
+          data.injectorImports.push(type.expression);
+        }
+      }
+      for (const decl of analysis.declarations) {
+        const dirMeta = this.metaReader.getDirectiveMetadata(decl);
+        if (dirMeta !== null) {
+          const refType = dirMeta.isComponent ? "Component" : "Directive";
+          if (dirMeta.selector === null) {
+            throw new FatalDiagnosticError(ErrorCode.DIRECTIVE_MISSING_SELECTOR, decl.node, `${refType} ${decl.node.name.text} has no selector, please add it!`);
+          }
+          continue;
+        }
+      }
+    }
+    if (diagnostics.length > 0) {
+      return { diagnostics };
+    }
+    if (scope === null || scope.compilation.isPoisoned || scope.exported.isPoisoned || scope.reexports === null) {
+      return { data };
+    } else {
+      return {
+        data,
+        reexports: scope.reexports
+      };
+    }
+  }
+  compileFull(node, { inj, mod, fac, classMetadata, declarations, remoteScopesMayRequireCycleProtection }, { injectorImports }) {
+    const factoryFn = compileNgFactoryDefField(fac);
+    const ngInjectorDef = compileInjector({
+      ...inj,
+      imports: injectorImports
+    });
+    const ngModuleDef = compileNgModule(mod);
+    const statements = ngModuleDef.statements;
+    const metadata = classMetadata !== null ? compileClassMetadata2(classMetadata) : null;
+    this.insertMetadataStatement(statements, metadata);
+    this.appendRemoteScopingStatements(statements, node, declarations, remoteScopesMayRequireCycleProtection);
+    return this.compileNgModule(factoryFn, ngInjectorDef, ngModuleDef);
+  }
+  compilePartial(node, { inj, fac, mod, classMetadata }, { injectorImports }) {
+    const factoryFn = compileDeclareFactory(fac);
+    const injectorDef = compileDeclareInjectorFromMetadata({
+      ...inj,
+      imports: injectorImports
+    });
+    const ngModuleDef = compileDeclareNgModuleFromMetadata(mod);
+    const metadata = classMetadata !== null ? compileDeclareClassMetadata2(classMetadata) : null;
+    this.insertMetadataStatement(ngModuleDef.statements, metadata);
+    return this.compileNgModule(factoryFn, injectorDef, ngModuleDef);
+  }
+  compileLocal(node, { inj, mod, fac, classMetadata, declarations, remoteScopesMayRequireCycleProtection }) {
+    const factoryFn = compileNgFactoryDefField(fac);
+    const ngInjectorDef = compileInjector({
+      ...inj
+    });
+    const ngModuleDef = compileNgModule(mod);
+    const statements = ngModuleDef.statements;
+    const metadata = classMetadata !== null ? compileClassMetadata2(classMetadata) : null;
+    this.insertMetadataStatement(statements, metadata);
+    this.appendRemoteScopingStatements(statements, node, declarations, remoteScopesMayRequireCycleProtection);
+    return this.compileNgModule(factoryFn, ngInjectorDef, ngModuleDef);
+  }
+  /**
+   * Add class metadata statements, if provided, to the `ngModuleStatements`.
+   */
+  insertMetadataStatement(ngModuleStatements, metadata) {
+    if (metadata !== null) {
+      ngModuleStatements.unshift(metadata.toStmt());
+    }
+  }
+  /**
+   * Add remote scoping statements, as needed, to the `ngModuleStatements`.
+   */
+  appendRemoteScopingStatements(ngModuleStatements, node, declarations, remoteScopesMayRequireCycleProtection) {
+    if (this.compilationMode === CompilationMode.LOCAL) {
+      return;
+    }
+    const context = getSourceFile(node);
+    for (const decl of declarations) {
+      const remoteScope = this.scopeRegistry.getRemoteScope(decl.node);
+      if (remoteScope !== null) {
+        const directives = remoteScope.directives.map((directive) => {
+          const type = this.refEmitter.emit(directive, context);
+          assertSuccessfulReferenceEmit(type, node, "directive");
+          return type.expression;
+        });
+        const pipes = remoteScope.pipes.map((pipe) => {
+          const type = this.refEmitter.emit(pipe, context);
+          assertSuccessfulReferenceEmit(type, node, "pipe");
+          return type.expression;
+        });
+        const directiveArray = new LiteralArrayExpr2(directives);
+        const pipesArray = new LiteralArrayExpr2(pipes);
+        const directiveExpr = remoteScopesMayRequireCycleProtection && directives.length > 0 ? new FunctionExpr([], [new ReturnStatement(directiveArray)]) : directiveArray;
+        const pipesExpr = remoteScopesMayRequireCycleProtection && pipes.length > 0 ? new FunctionExpr([], [new ReturnStatement(pipesArray)]) : pipesArray;
+        const componentType = this.refEmitter.emit(decl, context);
+        assertSuccessfulReferenceEmit(componentType, node, "component");
+        const declExpr = componentType.expression;
+        const setComponentScope = new ExternalExpr9(R3Identifiers5.setComponentScope);
+        const callExpr = new InvokeFunctionExpr(setComponentScope, [
+          declExpr,
+          directiveExpr,
+          pipesExpr
+        ]);
+        ngModuleStatements.push(callExpr.toStmt());
+      }
+    }
+  }
+  compileNgModule(factoryFn, injectorDef, ngModuleDef) {
+    const res = [
+      factoryFn,
+      {
+        name: "\u0275mod",
+        initializer: ngModuleDef.expression,
+        statements: ngModuleDef.statements,
+        type: ngModuleDef.type,
+        deferrableImports: null
+      },
+      {
+        name: "\u0275inj",
+        initializer: injectorDef.expression,
+        statements: injectorDef.statements,
+        type: injectorDef.type,
+        deferrableImports: null
+      }
+    ];
+    return res;
+  }
+  _toR3Reference(origin, valueRef, valueContext) {
+    if (valueRef.hasOwningModuleGuess) {
+      return toR3Reference(origin, valueRef, valueContext, this.refEmitter);
+    } else {
+      return toR3Reference(origin, valueRef, valueContext, this.refEmitter);
+    }
+  }
+  // Verify that a "Declaration" reference is a `ClassDeclaration` reference.
+  isClassDeclarationReference(ref) {
+    return this.reflector.isClass(ref.node);
+  }
+  /**
+   * Compute a list of `Reference`s from a resolved metadata value.
+   */
+  resolveTypeList(expr, resolvedList, className, arrayName, absoluteIndex, allowUnresolvedReferences) {
+    let hasModuleWithProviders = false;
+    const refList = [];
+    const dynamicValueSet = /* @__PURE__ */ new Set();
+    if (!Array.isArray(resolvedList)) {
+      if (allowUnresolvedReferences) {
+        return {
+          references: [],
+          hasModuleWithProviders: false,
+          dynamicValues: []
+        };
+      }
+      throw createValueHasWrongTypeError(expr, resolvedList, `Expected array when reading the NgModule.${arrayName} of ${className}`);
+    }
+    for (let idx = 0; idx < resolvedList.length; idx++) {
+      let entry = resolvedList[idx];
+      if (entry instanceof SyntheticValue && isResolvedModuleWithProviders(entry)) {
+        entry = entry.value.ngModule;
+        hasModuleWithProviders = true;
+      } else if (entry instanceof Map && entry.has("ngModule")) {
+        entry = entry.get("ngModule");
+        hasModuleWithProviders = true;
+      }
+      if (Array.isArray(entry)) {
+        const recursiveResult = this.resolveTypeList(expr, entry, className, arrayName, absoluteIndex, allowUnresolvedReferences);
+        refList.push(...recursiveResult.references);
+        for (const d of recursiveResult.dynamicValues) {
+          dynamicValueSet.add(d);
+        }
+        absoluteIndex += recursiveResult.references.length;
+        hasModuleWithProviders = hasModuleWithProviders || recursiveResult.hasModuleWithProviders;
+      } else if (entry instanceof Reference) {
+        if (!this.isClassDeclarationReference(entry)) {
+          throw createValueHasWrongTypeError(entry.node, entry, `Value at position ${absoluteIndex} in the NgModule.${arrayName} of ${className} is not a class`);
+        }
+        refList.push(entry);
+        absoluteIndex += 1;
+      } else if (entry instanceof DynamicValue && allowUnresolvedReferences) {
+        dynamicValueSet.add(entry);
+        continue;
+      } else if (this.emitDeclarationOnly && entry instanceof DynamicValue && entry.isFromUnknownIdentifier()) {
+        throw createValueHasWrongTypeError(entry.node, entry, `Value at position ${absoluteIndex} in the NgModule.${arrayName} of ${className} is an external reference. External references in @NgModule declarations are not supported in experimental declaration-only emission mode`);
+      } else {
+        throw createValueHasWrongTypeError(expr, entry, `Value at position ${absoluteIndex} in the NgModule.${arrayName} of ${className} is not a reference`);
+      }
+    }
+    return {
+      references: refList,
+      hasModuleWithProviders,
+      dynamicValues: [...dynamicValueSet]
+    };
+  }
+};
+function isNgModule(node, compilation) {
+  return !compilation.dependencies.some((dep) => dep.ref.node === node);
+}
+function isModuleIdExpression(expr) {
+  return ts67.isPropertyAccessExpression(expr) && ts67.isIdentifier(expr.expression) && expr.expression.text === "module" && expr.name.text === "id";
+}
+function makeStandaloneBootstrapDiagnostic(ngModuleClass, bootstrappedClassRef, rawBootstrapExpr) {
+  const componentClassName = bootstrappedClassRef.node.name.text;
+  const message = (
+    //
+    `The \`${componentClassName}\` class is a standalone component, which can not be used in the \`@NgModule.bootstrap\` array. Use the \`bootstrapApplication\` function for bootstrap instead.`
+  );
+  const relatedInformation = [
+    makeRelatedInformation(ngModuleClass, `The 'bootstrap' array is present on this NgModule.`)
+  ];
+  return makeDiagnostic(ErrorCode.NGMODULE_BOOTSTRAP_IS_STANDALONE, getDiagnosticNode(bootstrappedClassRef, rawBootstrapExpr), message, relatedInformation);
+}
+function isSyntheticReference(ref) {
+  return ref.synthetic;
+}
+
+// packages/compiler-cli/src/ngtsc/annotations/component/src/diagnostics.js
+function makeCyclicImportInfo(ref, type, cycle) {
+  const name = ref.debugName || "(unknown)";
+  const path = cycle.getPath().map((sf) => sf.fileName).join(" -> ");
+  const message = `The ${type} '${name}' is used in the template but importing it would create a cycle: `;
+  return makeRelatedInformation(ref.node, message + path);
+}
+function checkCustomElementSelectorForErrors(selector) {
+  if (selector.includes(".") || selector.includes("[") && selector.includes("]")) {
+    return null;
+  }
+  if (!/^[a-z]/.test(selector)) {
+    return "Selector of a ShadowDom-encapsulated component must start with a lower case letter.";
+  }
+  if (/[A-Z]/.test(selector)) {
+    return "Selector of a ShadowDom-encapsulated component must all be in lower case.";
+  }
+  if (!selector.includes("-")) {
+    return "Selector of a component that uses ViewEncapsulation.ShadowDom must contain a hyphen.";
+  }
+  return null;
+}
+
+// packages/compiler-cli/src/ngtsc/annotations/component/src/resources.js
+import { DEFAULT_INTERPOLATION_CONFIG, InterpolationConfig, ParseSourceFile as ParseSourceFile3, parseTemplate } from "@angular/compiler";
+import ts68 from "typescript";
+function getTemplateDeclarationNodeForError(declaration) {
+  return declaration.isInline ? declaration.expression : declaration.templateUrlExpression;
+}
+function extractTemplate(node, template, evaluator, depTracker, resourceLoader, options, compilationMode) {
+  if (template.isInline) {
+    let sourceStr;
+    let sourceParseRange = null;
+    let templateContent;
+    let sourceMapping;
+    let escapedString = false;
+    let sourceMapUrl;
+    if (ts68.isStringLiteral(template.expression) || ts68.isNoSubstitutionTemplateLiteral(template.expression)) {
+      sourceParseRange = getTemplateRange(template.expression);
+      sourceStr = template.expression.getSourceFile().text;
+      templateContent = template.expression.text;
+      escapedString = true;
+      sourceMapping = {
+        type: "direct",
+        node: template.expression
+      };
+      sourceMapUrl = template.resolvedTemplateUrl;
+    } else {
+      const resolvedTemplate = evaluator.evaluate(template.expression);
+      assertLocalCompilationUnresolvedConst(compilationMode, resolvedTemplate, template.expression, "Unresolved identifier found for @Component.template field! Did you import this identifier from a file outside of the compilation unit? This is not allowed when Angular compiler runs in local mode. Possible solutions: 1) Move the declaration into a file within the compilation unit, 2) Inline the template, 3) Move the template into a separate .html file and include it using @Component.templateUrl");
+      if (typeof resolvedTemplate !== "string") {
+        throw createValueHasWrongTypeError(template.expression, resolvedTemplate, "template must be a string");
+      }
+      sourceStr = resolvedTemplate;
+      templateContent = resolvedTemplate;
+      sourceMapping = {
+        type: "indirect",
+        node: template.expression,
+        componentClass: node,
+        template: templateContent
+      };
+      sourceMapUrl = null;
+    }
+    return {
+      ...parseExtractedTemplate(template, sourceStr, sourceParseRange, escapedString, sourceMapUrl, options),
+      content: templateContent,
+      sourceMapping,
+      declaration: template
+    };
+  } else {
+    const templateContent = resourceLoader.load(template.resolvedTemplateUrl);
+    if (depTracker !== null) {
+      depTracker.addResourceDependency(node.getSourceFile(), absoluteFrom(template.resolvedTemplateUrl));
+    }
+    return {
+      ...parseExtractedTemplate(
+        template,
+        /* sourceStr */
+        templateContent,
+        /* sourceParseRange */
+        null,
+        /* escapedString */
+        false,
+        /* sourceMapUrl */
+        template.resolvedTemplateUrl,
+        options
+      ),
+      content: templateContent,
+      sourceMapping: {
+        type: "external",
+        componentClass: node,
+        node: template.templateUrlExpression,
+        template: templateContent,
+        templateUrl: template.resolvedTemplateUrl
+      },
+      declaration: template
+    };
+  }
+}
+function createEmptyTemplate(componentClass, component, containingFile) {
+  const templateUrl = component.get("templateUrl");
+  const template = component.get("template");
+  return {
+    content: "",
+    diagNodes: [],
+    nodes: [],
+    errors: null,
+    styles: [],
+    styleUrls: [],
+    ngContentSelectors: [],
+    file: new ParseSourceFile3("", ""),
+    sourceMapping: templateUrl ? { type: "direct", node: template } : {
+      type: "external",
+      componentClass,
+      node: templateUrl,
+      template: "",
+      templateUrl: "missing.ng.html"
+    },
+    declaration: templateUrl ? {
+      isInline: false,
+      interpolationConfig: InterpolationConfig.fromArray(null),
+      preserveWhitespaces: false,
+      templateUrlExpression: templateUrl,
+      templateUrl: "missing.ng.html",
+      resolvedTemplateUrl: "/missing.ng.html"
+    } : {
+      isInline: true,
+      interpolationConfig: InterpolationConfig.fromArray(null),
+      preserveWhitespaces: false,
+      expression: template,
+      templateUrl: containingFile,
+      resolvedTemplateUrl: containingFile
+    }
+  };
+}
+function parseExtractedTemplate(template, sourceStr, sourceParseRange, escapedString, sourceMapUrl, options) {
+  const i18nNormalizeLineEndingsInICUs = escapedString || options.i18nNormalizeLineEndingsInICUs;
+  const commonParseOptions = {
+    interpolationConfig: template.interpolationConfig,
+    range: sourceParseRange ?? void 0,
+    enableI18nLegacyMessageIdFormat: options.enableI18nLegacyMessageIdFormat,
+    i18nNormalizeLineEndingsInICUs,
+    alwaysAttemptHtmlToR3AstConversion: options.usePoisonedData,
+    escapedString,
+    enableBlockSyntax: options.enableBlockSyntax,
+    enableLetSyntax: options.enableLetSyntax,
+    enableSelectorless: options.enableSelectorless
+  };
+  const parsedTemplate = parseTemplate(sourceStr, sourceMapUrl ?? "", {
+    ...commonParseOptions,
+    preserveWhitespaces: template.preserveWhitespaces,
+    preserveSignificantWhitespace: options.preserveSignificantWhitespace
+  });
+  const { nodes: diagNodes } = parseTemplate(sourceStr, sourceMapUrl ?? "", {
+    ...commonParseOptions,
+    preserveWhitespaces: true,
+    preserveLineEndings: true,
+    preserveSignificantWhitespace: true,
+    leadingTriviaChars: []
+  });
+  return {
+    ...parsedTemplate,
+    diagNodes,
+    file: new ParseSourceFile3(sourceStr, sourceMapUrl ?? "")
+  };
+}
+function parseTemplateDeclaration(node, decorator, component, containingFile, evaluator, depTracker, resourceLoader, defaultPreserveWhitespaces) {
+  let preserveWhitespaces = defaultPreserveWhitespaces;
+  if (component.has("preserveWhitespaces")) {
+    const expr = component.get("preserveWhitespaces");
+    const value = evaluator.evaluate(expr);
+    if (typeof value !== "boolean") {
+      throw createValueHasWrongTypeError(expr, value, "preserveWhitespaces must be a boolean");
+    }
+    preserveWhitespaces = value;
+  }
+  let interpolationConfig = DEFAULT_INTERPOLATION_CONFIG;
+  if (component.has("interpolation")) {
+    const expr = component.get("interpolation");
+    const value = evaluator.evaluate(expr);
+    if (!Array.isArray(value) || value.length !== 2 || !value.every((element) => typeof element === "string")) {
+      throw createValueHasWrongTypeError(expr, value, "interpolation must be an array with 2 elements of string type");
+    }
+    interpolationConfig = InterpolationConfig.fromArray(value);
+  }
+  if (component.has("templateUrl")) {
+    const templateUrlExpr = component.get("templateUrl");
+    const templateUrl = evaluator.evaluate(templateUrlExpr);
+    if (typeof templateUrl !== "string") {
+      throw createValueHasWrongTypeError(templateUrlExpr, templateUrl, "templateUrl must be a string");
+    }
+    try {
+      const resourceUrl = resourceLoader.resolve(templateUrl, containingFile);
+      return {
+        isInline: false,
+        interpolationConfig,
+        preserveWhitespaces,
+        templateUrl,
+        templateUrlExpression: templateUrlExpr,
+        resolvedTemplateUrl: resourceUrl
+      };
+    } catch (e) {
+      if (depTracker !== null) {
+        depTracker.recordDependencyAnalysisFailure(node.getSourceFile());
+      }
+      throw makeResourceNotFoundError(
+        templateUrl,
+        templateUrlExpr,
+        0
+        /* ResourceTypeForDiagnostics.Template */
+      );
+    }
+  } else if (component.has("template")) {
+    return {
+      isInline: true,
+      interpolationConfig,
+      preserveWhitespaces,
+      expression: component.get("template"),
+      templateUrl: containingFile,
+      resolvedTemplateUrl: containingFile
+    };
+  } else {
+    throw new FatalDiagnosticError(ErrorCode.COMPONENT_MISSING_TEMPLATE, decorator.node, "component is missing a template");
+  }
+}
+function preloadAndParseTemplate(evaluator, resourceLoader, depTracker, preanalyzeTemplateCache, node, decorator, component, containingFile, defaultPreserveWhitespaces, options, compilationMode) {
+  if (component.has("templateUrl")) {
+    const templateUrlExpr = component.get("templateUrl");
+    const templateUrl = evaluator.evaluate(templateUrlExpr);
+    if (typeof templateUrl !== "string") {
+      throw createValueHasWrongTypeError(templateUrlExpr, templateUrl, "templateUrl must be a string");
+    }
+    try {
+      const resourceUrl = resourceLoader.resolve(templateUrl, containingFile);
+      const templatePromise = resourceLoader.preload(resourceUrl, {
+        type: "template",
+        containingFile,
+        className: node.name.text
+      });
+      if (templatePromise !== void 0) {
+        return templatePromise.then(() => {
+          const templateDecl = parseTemplateDeclaration(node, decorator, component, containingFile, evaluator, depTracker, resourceLoader, defaultPreserveWhitespaces);
+          const template = extractTemplate(node, templateDecl, evaluator, depTracker, resourceLoader, options, compilationMode);
+          preanalyzeTemplateCache.set(node, template);
+          return template;
+        });
+      } else {
+        return Promise.resolve(null);
+      }
+    } catch (e) {
+      if (depTracker !== null) {
+        depTracker.recordDependencyAnalysisFailure(node.getSourceFile());
+      }
+      throw makeResourceNotFoundError(
+        templateUrl,
+        templateUrlExpr,
+        0
+        /* ResourceTypeForDiagnostics.Template */
+      );
+    }
+  } else {
+    const templateDecl = parseTemplateDeclaration(node, decorator, component, containingFile, evaluator, depTracker, resourceLoader, defaultPreserveWhitespaces);
+    const template = extractTemplate(node, templateDecl, evaluator, depTracker, resourceLoader, options, compilationMode);
+    preanalyzeTemplateCache.set(node, template);
+    return Promise.resolve(template);
+  }
+}
+function getTemplateRange(templateExpr) {
+  const startPos = templateExpr.getStart() + 1;
+  const { line, character } = ts68.getLineAndCharacterOfPosition(templateExpr.getSourceFile(), startPos);
+  return {
+    startPos,
+    startLine: line,
+    startCol: character,
+    endPos: templateExpr.getEnd() - 1
+  };
+}
+function makeResourceNotFoundError(file, nodeForError, resourceType) {
+  let errorText;
+  switch (resourceType) {
+    case 0:
+      errorText = `Could not find template file '${file}'.`;
+      break;
+    case 1:
+      errorText = `Could not find stylesheet file '${file}' linked from the template.`;
+      break;
+    case 2:
+      errorText = `Could not find stylesheet file '${file}'.`;
+      break;
+  }
+  return new FatalDiagnosticError(ErrorCode.COMPONENT_RESOURCE_NOT_FOUND, nodeForError, errorText);
+}
+function transformDecoratorResources(dec, component, styles, template) {
+  if (dec.name !== "Component") {
+    return dec;
+  }
+  if (!component.has("templateUrl") && !component.has("styleUrls") && !component.has("styleUrl") && !component.has("styles")) {
+    return dec;
+  }
+  const metadata = new Map(component);
+  if (metadata.has("templateUrl")) {
+    metadata.delete("templateUrl");
+    metadata.set("template", ts68.factory.createStringLiteral(template.content));
+  }
+  if (metadata.has("styleUrls") || metadata.has("styleUrl") || metadata.has("styles")) {
+    metadata.delete("styles");
+    metadata.delete("styleUrls");
+    metadata.delete("styleUrl");
+    if (styles.length > 0) {
+      const styleNodes = styles.reduce((result, style) => {
+        if (style.trim().length > 0) {
+          result.push(ts68.factory.createStringLiteral(style));
+        }
+        return result;
+      }, []);
+      if (styleNodes.length > 0) {
+        metadata.set("styles", ts68.factory.createArrayLiteralExpression(styleNodes));
+      }
+    }
+  }
+  const newMetadataFields = [];
+  for (const [name, value] of metadata.entries()) {
+    newMetadataFields.push(ts68.factory.createPropertyAssignment(name, value));
+  }
+  return { ...dec, args: [ts68.factory.createObjectLiteralExpression(newMetadataFields)] };
+}
+function extractComponentStyleUrls(evaluator, component) {
+  const styleUrlsExpr = component.get("styleUrls");
+  const styleUrlExpr = component.get("styleUrl");
+  if (styleUrlsExpr !== void 0 && styleUrlExpr !== void 0) {
+    throw new FatalDiagnosticError(ErrorCode.COMPONENT_INVALID_STYLE_URLS, styleUrlExpr, "@Component cannot define both `styleUrl` and `styleUrls`. Use `styleUrl` if the component has one stylesheet, or `styleUrls` if it has multiple");
+  }
+  if (styleUrlsExpr !== void 0) {
+    return extractStyleUrlsFromExpression(evaluator, component.get("styleUrls"));
+  }
+  if (styleUrlExpr !== void 0) {
+    const styleUrl = evaluator.evaluate(styleUrlExpr);
+    if (typeof styleUrl !== "string") {
+      throw createValueHasWrongTypeError(styleUrlExpr, styleUrl, "styleUrl must be a string");
+    }
+    return [
+      {
+        url: styleUrl,
+        source: 2,
+        expression: styleUrlExpr
+      }
+    ];
+  }
+  return [];
+}
+function extractStyleUrlsFromExpression(evaluator, styleUrlsExpr) {
+  const styleUrls = [];
+  if (ts68.isArrayLiteralExpression(styleUrlsExpr)) {
+    for (const styleUrlExpr of styleUrlsExpr.elements) {
+      if (ts68.isSpreadElement(styleUrlExpr)) {
+        styleUrls.push(...extractStyleUrlsFromExpression(evaluator, styleUrlExpr.expression));
+      } else {
+        const styleUrl = evaluator.evaluate(styleUrlExpr);
+        if (typeof styleUrl !== "string") {
+          throw createValueHasWrongTypeError(styleUrlExpr, styleUrl, "styleUrl must be a string");
+        }
+        styleUrls.push({
+          url: styleUrl,
+          source: 2,
+          expression: styleUrlExpr
+        });
+      }
+    }
+  } else {
+    const evaluatedStyleUrls = evaluator.evaluate(styleUrlsExpr);
+    if (!isStringArray(evaluatedStyleUrls)) {
+      throw createValueHasWrongTypeError(styleUrlsExpr, evaluatedStyleUrls, "styleUrls must be an array of strings");
+    }
+    for (const styleUrl of evaluatedStyleUrls) {
+      styleUrls.push({
+        url: styleUrl,
+        source: 2,
+        expression: styleUrlsExpr
+      });
+    }
+  }
+  return styleUrls;
+}
+function extractInlineStyleResources(component) {
+  const styles = /* @__PURE__ */ new Set();
+  function stringLiteralElements(array) {
+    return array.elements.filter((e) => ts68.isStringLiteralLike(e));
+  }
+  const stylesExpr = component.get("styles");
+  if (stylesExpr !== void 0) {
+    if (ts68.isArrayLiteralExpression(stylesExpr)) {
+      for (const expression of stringLiteralElements(stylesExpr)) {
+        styles.add({ path: null, node: expression });
+      }
+    } else if (ts68.isStringLiteralLike(stylesExpr)) {
+      styles.add({ path: null, node: stylesExpr });
+    }
+  }
+  return styles;
+}
+function _extractTemplateStyleUrls(template) {
+  if (template.styleUrls === null) {
+    return [];
+  }
+  const expression = getTemplateDeclarationNodeForError(template.declaration);
+  return template.styleUrls.map((url) => ({
+    url,
+    source: 1,
+    expression
+  }));
+}
+
+// packages/compiler-cli/src/ngtsc/annotations/component/src/symbol.js
+var ComponentSymbol = class _ComponentSymbol extends DirectiveSymbol {
+  usedDirectives = [];
+  usedPipes = [];
+  isRemotelyScoped = false;
+  isEmitAffected(previousSymbol, publicApiAffected) {
+    if (!(previousSymbol instanceof _ComponentSymbol)) {
+      return true;
+    }
+    const isSymbolUnaffected = (current, previous) => isReferenceEqual(current, previous) && !publicApiAffected.has(current.symbol);
+    return this.isRemotelyScoped !== previousSymbol.isRemotelyScoped || !isArrayEqual(this.usedDirectives, previousSymbol.usedDirectives, isSymbolUnaffected) || !isArrayEqual(this.usedPipes, previousSymbol.usedPipes, isSymbolUnaffected);
+  }
+  isTypeCheckBlockAffected(previousSymbol, typeCheckApiAffected) {
+    if (!(previousSymbol instanceof _ComponentSymbol)) {
+      return true;
+    }
+    const isInheritanceChainAffected = (symbol) => {
+      let currentSymbol = symbol;
+      while (currentSymbol instanceof DirectiveSymbol) {
+        if (typeCheckApiAffected.has(currentSymbol)) {
+          return true;
+        }
+        currentSymbol = currentSymbol.baseClass;
+      }
+      return false;
+    };
+    const isDirectiveUnaffected = (current, previous) => isReferenceEqual(current, previous) && !isInheritanceChainAffected(current.symbol);
+    const isPipeUnaffected = (current, previous) => isReferenceEqual(current, previous) && !typeCheckApiAffected.has(current.symbol);
+    return !isArrayEqual(this.usedDirectives, previousSymbol.usedDirectives, isDirectiveUnaffected) || !isArrayEqual(this.usedPipes, previousSymbol.usedPipes, isPipeUnaffected);
+  }
+};
+
+// packages/compiler-cli/src/ngtsc/annotations/component/src/util.js
+import ts69 from "typescript";
+function collectLegacyAnimationNames(value, legacyAnimationTriggerNames) {
+  if (value instanceof Map) {
+    const name = value.get("name");
+    if (typeof name === "string") {
+      legacyAnimationTriggerNames.staticTriggerNames.push(name);
+    } else {
+      legacyAnimationTriggerNames.includesDynamicAnimations = true;
+    }
+  } else if (Array.isArray(value)) {
+    for (const resolvedValue of value) {
+      collectLegacyAnimationNames(resolvedValue, legacyAnimationTriggerNames);
+    }
+  } else {
+    legacyAnimationTriggerNames.includesDynamicAnimations = true;
+  }
+}
+function isLegacyAngularAnimationsReference(reference, symbolName) {
+  return reference.ownedByModuleGuess === "@angular/animations" && reference.debugName === symbolName;
+}
+var legacyAnimationTriggerResolver = (fn, node, resolve2, unresolvable) => {
+  const animationTriggerMethodName = "trigger";
+  if (!isLegacyAngularAnimationsReference(fn, animationTriggerMethodName)) {
+    return unresolvable;
+  }
+  const triggerNameExpression = node.arguments[0];
+  if (!triggerNameExpression) {
+    return unresolvable;
+  }
+  const res = /* @__PURE__ */ new Map();
+  res.set("name", resolve2(triggerNameExpression));
+  return res;
+};
+function validateAndFlattenComponentImports(imports, expr, isDeferred) {
+  const flattened = [];
+  const errorMessage = isDeferred ? `'deferredImports' must be an array of components, directives, or pipes.` : `'imports' must be an array of components, directives, pipes, or NgModules.`;
+  if (!Array.isArray(imports)) {
+    const error = createValueHasWrongTypeError(expr, imports, errorMessage).toDiagnostic();
+    return {
+      imports: [],
+      diagnostics: [error]
+    };
+  }
+  const diagnostics = [];
+  for (let i = 0; i < imports.length; i++) {
+    const ref = imports[i];
+    if (Array.isArray(ref)) {
+      const { imports: childImports, diagnostics: childDiagnostics } = validateAndFlattenComponentImports(ref, expr, isDeferred);
+      flattened.push(...childImports);
+      diagnostics.push(...childDiagnostics);
+    } else if (ref instanceof Reference) {
+      if (isNamedClassDeclaration(ref.node)) {
+        flattened.push(ref);
+      } else {
+        diagnostics.push(createValueHasWrongTypeError(ref.getOriginForDiagnostics(expr), ref, errorMessage).toDiagnostic());
+      }
+    } else if (isLikelyModuleWithProviders(ref)) {
+      let origin = expr;
+      if (ref instanceof SyntheticValue) {
+        origin = getOriginNodeForDiagnostics(ref.value.mwpCall, expr);
+      }
+      diagnostics.push(makeDiagnostic(ErrorCode.COMPONENT_UNKNOWN_IMPORT, origin, `Component imports contains a ModuleWithProviders value, likely the result of a 'Module.forRoot()'-style call. These calls are not used to configure components and are not valid in standalone component imports - consider importing them in the application bootstrap instead.`));
+    } else {
+      let diagnosticNode;
+      let diagnosticValue;
+      if (ref instanceof DynamicValue) {
+        diagnosticNode = ref.node;
+        diagnosticValue = ref;
+      } else if (ts69.isArrayLiteralExpression(expr) && expr.elements.length === imports.length && !expr.elements.some(ts69.isSpreadAssignment) && !imports.some(Array.isArray)) {
+        diagnosticNode = expr.elements[i];
+        diagnosticValue = ref;
+      } else {
+        diagnosticNode = expr;
+        diagnosticValue = imports;
+      }
+      diagnostics.push(createValueHasWrongTypeError(diagnosticNode, diagnosticValue, errorMessage).toDiagnostic());
+    }
+  }
+  return { imports: flattened, diagnostics };
+}
+function isLikelyModuleWithProviders(value) {
+  if (value instanceof SyntheticValue && isResolvedModuleWithProviders(value)) {
+    return true;
+  }
+  if (value instanceof Map && value.has("ngModule")) {
+    return true;
+  }
+  return false;
+}
+
+// packages/compiler-cli/src/ngtsc/hmr/src/metadata.js
+import { outputAst as o4 } from "@angular/compiler";
+
+// packages/compiler-cli/src/ngtsc/hmr/src/extract_dependencies.js
+import { outputAst as o3 } from "@angular/compiler";
+import ts70 from "typescript";
+function extractHmrDependencies(node, definition, factory, deferBlockMetadata, classMetadata, debugInfo, reflection, evaluator) {
+  const name = ts70.isClassDeclaration(node) && node.name ? node.name.text : null;
+  const visitor = new PotentialTopLevelReadsVisitor();
+  const sourceFile = ts70.getOriginalNode(node).getSourceFile();
+  definition.expression.visitExpression(visitor, null);
+  definition.statements.forEach((statement) => statement.visitStatement(visitor, null));
+  factory.initializer?.visitExpression(visitor, null);
+  factory.statements.forEach((statement) => statement.visitStatement(visitor, null));
+  classMetadata?.visitStatement(visitor, null);
+  debugInfo?.visitStatement(visitor, null);
+  if (deferBlockMetadata.mode === 0) {
+    deferBlockMetadata.blocks.forEach((loader) => loader?.visitExpression(visitor, null));
+  } else {
+    deferBlockMetadata.dependenciesFn?.visitExpression(visitor, null);
+  }
+  const availableTopLevel = getTopLevelDeclarationNames(sourceFile);
+  const local = [];
+  const seenLocals = /* @__PURE__ */ new Set();
+  for (const readNode of visitor.allReads) {
+    const readName = readNode instanceof o3.ReadVarExpr ? readNode.name : readNode.text;
+    if (readName !== name && !seenLocals.has(readName) && availableTopLevel.has(readName)) {
+      const runtimeRepresentation = getRuntimeRepresentation(readNode, reflection, evaluator);
+      if (runtimeRepresentation === null) {
+        return null;
+      }
+      local.push({ name: readName, runtimeRepresentation });
+      seenLocals.add(readName);
+    }
+  }
+  return {
+    local,
+    external: Array.from(visitor.namespaceReads, (name2, index) => ({
+      moduleName: name2,
+      assignedName: `\u0275hmr${index}`
+    }))
+  };
+}
+function getRuntimeRepresentation(node, reflection, evaluator) {
+  if (node instanceof o3.ReadVarExpr) {
+    return o3.variable(node.name);
+  }
+  if (isConstEnumReference(node, reflection)) {
+    const evaluated = evaluator.evaluate(node);
+    if (evaluated instanceof Map) {
+      const members = [];
+      for (const [name, value] of evaluated.entries()) {
+        if (value instanceof EnumValue && (value.resolved == null || typeof value.resolved === "string" || typeof value.resolved === "boolean" || typeof value.resolved === "number")) {
+          members.push({
+            key: name,
+            quoted: false,
+            value: o3.literal(value.resolved)
+          });
+        } else {
+          return null;
+        }
+      }
+      return o3.literalMap(members);
+    }
+  }
+  return o3.variable(node.text);
+}
+function getTopLevelDeclarationNames(sourceFile) {
+  const results = /* @__PURE__ */ new Set();
+  for (const node of sourceFile.statements) {
+    if (ts70.isClassDeclaration(node) || ts70.isFunctionDeclaration(node) || ts70.isEnumDeclaration(node)) {
+      if (node.name) {
+        results.add(node.name.text);
+      }
+      continue;
+    }
+    if (ts70.isVariableStatement(node)) {
+      for (const decl of node.declarationList.declarations) {
+        trackBindingName(decl.name, results);
+      }
+      continue;
+    }
+    if (ts70.isImportDeclaration(node) && node.importClause) {
+      const importClause = node.importClause;
+      if (importClause.isTypeOnly) {
+        continue;
+      }
+      if (importClause.name) {
+        results.add(importClause.name.text);
+      }
+      if (importClause.namedBindings) {
+        const namedBindings = importClause.namedBindings;
+        if (ts70.isNamespaceImport(namedBindings)) {
+          results.add(namedBindings.name.text);
+        } else {
+          namedBindings.elements.forEach((el) => {
+            if (!el.isTypeOnly) {
+              results.add(el.name.text);
+            }
+          });
+        }
+      }
+      continue;
+    }
+  }
+  return results;
+}
+function trackBindingName(node, results) {
+  if (ts70.isIdentifier(node)) {
+    results.add(node.text);
+  } else {
+    for (const el of node.elements) {
+      if (!ts70.isOmittedExpression(el)) {
+        trackBindingName(el.name, results);
+      }
+    }
+  }
+}
+var PotentialTopLevelReadsVisitor = class extends o3.RecursiveAstVisitor {
+  allReads = /* @__PURE__ */ new Set();
+  namespaceReads = /* @__PURE__ */ new Set();
+  visitExternalExpr(ast, context) {
+    if (ast.value.moduleName !== null) {
+      this.namespaceReads.add(ast.value.moduleName);
+    }
+    super.visitExternalExpr(ast, context);
+  }
+  visitReadVarExpr(ast, context) {
+    this.allReads.add(ast);
+    super.visitReadVarExpr(ast, context);
+  }
+  visitWrappedNodeExpr(ast, context) {
+    if (this.isTypeScriptNode(ast.node)) {
+      this.addAllTopLevelIdentifiers(ast.node);
+    }
+    super.visitWrappedNodeExpr(ast, context);
+  }
+  /**
+   * Traverses a TypeScript AST and tracks all the top-level reads.
+   * @param node Node from which to start the traversal.
+   */
+  addAllTopLevelIdentifiers = (node) => {
+    if (ts70.isIdentifier(node) && this.isTopLevelIdentifierReference(node)) {
+      this.allReads.add(node);
+    } else {
+      ts70.forEachChild(node, this.addAllTopLevelIdentifiers);
+    }
+  };
+  /**
+   * TypeScript identifiers are used both when referring to a variable (e.g. `console.log(foo)`)
+   * and for names (e.g. `{foo: 123}`). This function determines if the identifier is a top-level
+   * variable read, rather than a nested name.
+   * @param identifier Identifier to check.
+   */
+  isTopLevelIdentifierReference(identifier) {
+    let node = identifier;
+    let parent = node.parent;
+    if (!parent) {
+      return false;
+    }
+    if (ts70.isParenthesizedExpression(parent) && parent.expression === node) {
+      while (parent && ts70.isParenthesizedExpression(parent)) {
+        node = parent;
+        parent = parent.parent;
+      }
+    }
+    if (ts70.isSourceFile(parent)) {
+      return true;
+    }
+    if (ts70.isCallExpression(parent)) {
+      return parent.expression === node || parent.arguments.includes(node);
+    }
+    if (ts70.isExpressionStatement(parent) || ts70.isPropertyAccessExpression(parent) || ts70.isComputedPropertyName(parent) || ts70.isTemplateSpan(parent) || ts70.isSpreadAssignment(parent) || ts70.isSpreadElement(parent) || ts70.isAwaitExpression(parent) || ts70.isNonNullExpression(parent) || ts70.isIfStatement(parent) || ts70.isDoStatement(parent) || ts70.isWhileStatement(parent) || ts70.isSwitchStatement(parent) || ts70.isCaseClause(parent) || ts70.isThrowStatement(parent) || ts70.isNewExpression(parent) || ts70.isExpressionWithTypeArguments(parent)) {
+      return parent.expression === node;
+    }
+    if (ts70.isArrayLiteralExpression(parent)) {
+      return parent.elements.includes(node);
+    }
+    if (ts70.isPropertyAssignment(parent) || ts70.isParameter(parent) || ts70.isBindingElement(parent) || ts70.isPropertyDeclaration(parent) || ts70.isEnumMember(parent)) {
+      return parent.initializer === node;
+    }
+    if (ts70.isVariableDeclaration(parent)) {
+      return parent.name === node || parent.initializer === node;
+    }
+    if (ts70.isClassDeclaration(parent) || ts70.isFunctionDeclaration(parent) || ts70.isShorthandPropertyAssignment(parent)) {
+      return parent.name === node;
+    }
+    if (ts70.isElementAccessExpression(parent)) {
+      return parent.expression === node || parent.argumentExpression === node;
+    }
+    if (ts70.isBinaryExpression(parent)) {
+      return parent.left === node || parent.right === node;
+    }
+    if (ts70.isForInStatement(parent) || ts70.isForOfStatement(parent)) {
+      return parent.expression === node || parent.initializer === node;
+    }
+    if (ts70.isForStatement(parent)) {
+      return parent.condition === node || parent.initializer === node || parent.incrementor === node;
+    }
+    if (ts70.isArrowFunction(parent)) {
+      return parent.body === node;
+    }
+    if (ts70.isImportSpecifier(parent) || ts70.isExportSpecifier(parent)) {
+      return (parent.propertyName || parent.name) === node;
+    }
+    if (ts70.isConditionalExpression(parent)) {
+      return parent.condition === node || parent.whenFalse === node || parent.whenTrue === node;
+    }
+    return false;
+  }
+  /** Checks if a value is a TypeScript AST node. */
+  isTypeScriptNode(value) {
+    return !!value && typeof value.kind === "number";
+  }
+};
+function isConstEnumReference(node, reflection) {
+  const parent = node.parent;
+  if (!parent || !ts70.isPropertyAccessExpression(parent) || parent.expression !== node || !ts70.isIdentifier(parent.name)) {
+    return false;
+  }
+  const declaration = reflection.getDeclarationOfIdentifier(node);
+  return declaration !== null && ts70.isEnumDeclaration(declaration.node) && !!declaration.node.modifiers?.some((m) => m.kind === ts70.SyntaxKind.ConstKeyword);
+}
+
+// packages/compiler-cli/src/ngtsc/hmr/src/metadata.js
+import ts71 from "typescript";
+function extractHmrMetatadata(clazz, reflection, evaluator, compilerHost, rootDirs, definition, factory, deferBlockMetadata, classMetadata, debugInfo) {
+  if (!reflection.isClass(clazz)) {
+    return null;
+  }
+  const sourceFile = ts71.getOriginalNode(clazz).getSourceFile();
+  const filePath = getProjectRelativePath(sourceFile.fileName, rootDirs, compilerHost) || compilerHost.getCanonicalFileName(sourceFile.fileName);
+  const dependencies = extractHmrDependencies(clazz, definition, factory, deferBlockMetadata, classMetadata, debugInfo, reflection, evaluator);
+  if (dependencies === null) {
+    return null;
+  }
+  const meta = {
+    type: new o4.WrappedNodeExpr(clazz.name),
+    className: clazz.name.text,
+    filePath,
+    localDependencies: dependencies.local,
+    namespaceDependencies: dependencies.external
+  };
+  return meta;
+}
+
+// packages/compiler-cli/src/ngtsc/hmr/src/update_declaration.js
+import { compileHmrUpdateCallback } from "@angular/compiler";
+import ts72 from "typescript";
+function getHmrUpdateDeclaration(compilationResults, constantStatements, meta, declaration) {
+  const namespaceSpecifiers = meta.namespaceDependencies.reduce((result, current) => {
+    result.set(current.moduleName, current.assignedName);
+    return result;
+  }, /* @__PURE__ */ new Map());
+  const importRewriter = new HmrModuleImportRewriter(namespaceSpecifiers);
+  const importManager = new ImportManager({
+    ...presetImportManagerForceNamespaceImports,
+    rewriter: importRewriter
+  });
+  const callback = compileHmrUpdateCallback(compilationResults, constantStatements, meta);
+  const sourceFile = ts72.getOriginalNode(declaration).getSourceFile();
+  const node = translateStatement(sourceFile, callback, importManager);
+  return ts72.factory.updateFunctionDeclaration(node, [
+    ts72.factory.createToken(ts72.SyntaxKind.ExportKeyword),
+    ts72.factory.createToken(ts72.SyntaxKind.DefaultKeyword)
+  ], node.asteriskToken, node.name, node.typeParameters, node.parameters, node.type, node.body);
+}
+var HmrModuleImportRewriter = class {
+  lookup;
+  constructor(lookup) {
+    this.lookup = lookup;
+  }
+  rewriteNamespaceImportIdentifier(specifier, moduleName) {
+    return this.lookup.has(moduleName) ? this.lookup.get(moduleName) : specifier;
+  }
+  rewriteSymbol(symbol) {
+    return symbol;
+  }
+  rewriteSpecifier(specifier) {
+    return specifier;
+  }
+};
+
+// packages/compiler-cli/src/ngtsc/annotations/component/src/selectorless.js
+import { BindingPipe as BindingPipe3, CombinedRecursiveAstVisitor, tmplAstVisitAll, BindingPipeType } from "@angular/compiler";
+function analyzeTemplateForSelectorless(template) {
+  const analyzer = new SelectorlessDirectivesAnalyzer();
+  tmplAstVisitAll(analyzer, template);
+  const isSelectorless = analyzer.symbols !== null && analyzer.symbols.size > 0;
+  const localReferencedSymbols = analyzer.symbols;
+  return { isSelectorless, localReferencedSymbols };
+}
+var SelectorlessDirectivesAnalyzer = class extends CombinedRecursiveAstVisitor {
+  symbols = null;
+  visit(node) {
+    if (node instanceof BindingPipe3 && node.type === BindingPipeType.ReferencedDirectly) {
+      this.trackSymbol(node.name);
+    }
+    super.visit(node);
+  }
+  visitComponent(component) {
+    this.trackSymbol(component.componentName);
+    super.visitComponent(component);
+  }
+  visitDirective(directive) {
+    this.trackSymbol(directive.name);
+    super.visitDirective(directive);
+  }
+  trackSymbol(name) {
+    this.symbols ??= /* @__PURE__ */ new Set();
+    this.symbols.add(name);
+  }
+};
+
+// packages/compiler-cli/src/ngtsc/annotations/component/src/handler.js
+var EMPTY_ARRAY2 = [];
+var isUsedDirective = (decl) => decl.kind === R3TemplateDependencyKind.Directive;
+var isUsedPipe = (decl) => decl.kind === R3TemplateDependencyKind.Pipe;
+var ComponentDecoratorHandler = class {
+  reflector;
+  evaluator;
+  metaRegistry;
+  metaReader;
+  scopeReader;
+  compilerHost;
+  scopeRegistry;
+  typeCheckScopeRegistry;
+  resourceRegistry;
+  isCore;
+  strictCtorDeps;
+  resourceLoader;
+  rootDirs;
+  defaultPreserveWhitespaces;
+  i18nUseExternalIds;
+  enableI18nLegacyMessageIdFormat;
+  usePoisonedData;
+  i18nNormalizeLineEndingsInICUs;
+  moduleResolver;
+  cycleAnalyzer;
+  cycleHandlingStrategy;
+  refEmitter;
+  referencesRegistry;
+  depTracker;
+  injectableRegistry;
+  semanticDepGraphUpdater;
+  annotateForClosureCompiler;
+  perf;
+  hostDirectivesResolver;
+  importTracker;
+  includeClassMetadata;
+  compilationMode;
+  deferredSymbolTracker;
+  forbidOrphanRendering;
+  enableBlockSyntax;
+  enableLetSyntax;
+  externalRuntimeStyles;
+  localCompilationExtraImportsTracker;
+  jitDeclarationRegistry;
+  i18nPreserveSignificantWhitespace;
+  strictStandalone;
+  enableHmr;
+  implicitStandaloneValue;
+  typeCheckHostBindings;
+  enableSelectorless;
+  emitDeclarationOnly;
+  constructor(reflector, evaluator, metaRegistry, metaReader, scopeReader, compilerHost, scopeRegistry, typeCheckScopeRegistry, resourceRegistry, isCore, strictCtorDeps, resourceLoader, rootDirs, defaultPreserveWhitespaces, i18nUseExternalIds, enableI18nLegacyMessageIdFormat, usePoisonedData, i18nNormalizeLineEndingsInICUs, moduleResolver, cycleAnalyzer, cycleHandlingStrategy, refEmitter, referencesRegistry, depTracker, injectableRegistry, semanticDepGraphUpdater, annotateForClosureCompiler, perf, hostDirectivesResolver, importTracker, includeClassMetadata, compilationMode, deferredSymbolTracker, forbidOrphanRendering, enableBlockSyntax, enableLetSyntax, externalRuntimeStyles, localCompilationExtraImportsTracker, jitDeclarationRegistry, i18nPreserveSignificantWhitespace, strictStandalone, enableHmr, implicitStandaloneValue, typeCheckHostBindings, enableSelectorless, emitDeclarationOnly) {
+    this.reflector = reflector;
+    this.evaluator = evaluator;
+    this.metaRegistry = metaRegistry;
+    this.metaReader = metaReader;
+    this.scopeReader = scopeReader;
+    this.compilerHost = compilerHost;
+    this.scopeRegistry = scopeRegistry;
+    this.typeCheckScopeRegistry = typeCheckScopeRegistry;
+    this.resourceRegistry = resourceRegistry;
+    this.isCore = isCore;
+    this.strictCtorDeps = strictCtorDeps;
+    this.resourceLoader = resourceLoader;
+    this.rootDirs = rootDirs;
+    this.defaultPreserveWhitespaces = defaultPreserveWhitespaces;
+    this.i18nUseExternalIds = i18nUseExternalIds;
+    this.enableI18nLegacyMessageIdFormat = enableI18nLegacyMessageIdFormat;
+    this.usePoisonedData = usePoisonedData;
+    this.i18nNormalizeLineEndingsInICUs = i18nNormalizeLineEndingsInICUs;
+    this.moduleResolver = moduleResolver;
+    this.cycleAnalyzer = cycleAnalyzer;
+    this.cycleHandlingStrategy = cycleHandlingStrategy;
+    this.refEmitter = refEmitter;
+    this.referencesRegistry = referencesRegistry;
+    this.depTracker = depTracker;
+    this.injectableRegistry = injectableRegistry;
+    this.semanticDepGraphUpdater = semanticDepGraphUpdater;
+    this.annotateForClosureCompiler = annotateForClosureCompiler;
+    this.perf = perf;
+    this.hostDirectivesResolver = hostDirectivesResolver;
+    this.importTracker = importTracker;
+    this.includeClassMetadata = includeClassMetadata;
+    this.compilationMode = compilationMode;
+    this.deferredSymbolTracker = deferredSymbolTracker;
+    this.forbidOrphanRendering = forbidOrphanRendering;
+    this.enableBlockSyntax = enableBlockSyntax;
+    this.enableLetSyntax = enableLetSyntax;
+    this.externalRuntimeStyles = externalRuntimeStyles;
+    this.localCompilationExtraImportsTracker = localCompilationExtraImportsTracker;
+    this.jitDeclarationRegistry = jitDeclarationRegistry;
+    this.i18nPreserveSignificantWhitespace = i18nPreserveSignificantWhitespace;
+    this.strictStandalone = strictStandalone;
+    this.enableHmr = enableHmr;
+    this.implicitStandaloneValue = implicitStandaloneValue;
+    this.typeCheckHostBindings = typeCheckHostBindings;
+    this.enableSelectorless = enableSelectorless;
+    this.emitDeclarationOnly = emitDeclarationOnly;
+    this.extractTemplateOptions = {
+      enableI18nLegacyMessageIdFormat: this.enableI18nLegacyMessageIdFormat,
+      i18nNormalizeLineEndingsInICUs: this.i18nNormalizeLineEndingsInICUs,
+      usePoisonedData: this.usePoisonedData,
+      enableBlockSyntax: this.enableBlockSyntax,
+      enableLetSyntax: this.enableLetSyntax,
+      enableSelectorless: this.enableSelectorless,
+      preserveSignificantWhitespace: this.i18nPreserveSignificantWhitespace
+    };
+    this.canDeferDeps = !enableHmr;
+  }
+  literalCache = /* @__PURE__ */ new Map();
+  elementSchemaRegistry = new DomElementSchemaRegistry3();
+  /**
+   * During the asynchronous preanalyze phase, it's necessary to parse the template to extract
+   * any potential <link> tags which might need to be loaded. This cache ensures that work is not
+   * thrown away, and the parsed template is reused during the analyze phase.
+   */
+  preanalyzeTemplateCache = /* @__PURE__ */ new Map();
+  preanalyzeStylesCache = /* @__PURE__ */ new Map();
+  /** Whether generated code for a component can defer its dependencies. */
+  canDeferDeps;
+  extractTemplateOptions;
+  precedence = HandlerPrecedence.PRIMARY;
+  name = "ComponentDecoratorHandler";
+  detect(node, decorators) {
+    if (!decorators) {
+      return void 0;
+    }
+    const decorator = findAngularDecorator(decorators, "Component", this.isCore);
+    if (decorator !== void 0) {
+      return {
+        trigger: decorator.node,
+        decorator,
+        metadata: decorator
+      };
+    } else {
+      return void 0;
+    }
+  }
+  preanalyze(node, decorator) {
+    if (!this.resourceLoader.canPreload) {
+      return void 0;
+    }
+    const meta = resolveLiteral(decorator, this.literalCache);
+    const component = reflectObjectLiteral(meta);
+    const containingFile = node.getSourceFile().fileName;
+    const resolveStyleUrl = (styleUrl) => {
+      try {
+        const resourceUrl = this.resourceLoader.resolve(styleUrl, containingFile);
+        return this.resourceLoader.preload(resourceUrl, {
+          type: "style",
+          containingFile,
+          className: node.name.text
+        });
+      } catch {
+        return void 0;
+      }
+    };
+    const templateAndTemplateStyleResources = preloadAndParseTemplate(this.evaluator, this.resourceLoader, this.depTracker, this.preanalyzeTemplateCache, node, decorator, component, containingFile, this.defaultPreserveWhitespaces, this.extractTemplateOptions, this.compilationMode).then((template) => {
+      if (template === null) {
+        return { templateStyles: [], templateStyleUrls: [] };
+      }
+      let templateUrl;
+      if (template.sourceMapping.type === "external") {
+        templateUrl = template.sourceMapping.templateUrl;
+      }
+      return {
+        templateUrl,
+        templateStyles: template.styles,
+        templateStyleUrls: template.styleUrls
+      };
+    });
+    const componentStyleUrls = extractComponentStyleUrls(this.evaluator, component);
+    return templateAndTemplateStyleResources.then(async (templateInfo) => {
+      let styles = null;
+      let orderOffset = 0;
+      const rawStyles = parseDirectiveStyles(component, this.evaluator, this.compilationMode);
+      if (rawStyles?.length) {
+        styles = await Promise.all(rawStyles.map((style) => this.resourceLoader.preprocessInline(style, {
+          type: "style",
+          containingFile,
+          order: orderOffset++,
+          className: node.name.text
+        })));
+      }
+      if (templateInfo.templateStyles) {
+        styles ??= [];
+        styles.push(...await Promise.all(templateInfo.templateStyles.map((style) => this.resourceLoader.preprocessInline(style, {
+          type: "style",
+          containingFile: templateInfo.templateUrl ?? containingFile,
+          order: orderOffset++,
+          className: node.name.text
+        }))));
+      }
+      this.preanalyzeStylesCache.set(node, styles);
+      if (this.externalRuntimeStyles) {
+        return;
+      }
+      await Promise.all([
+        ...componentStyleUrls.map((styleUrl) => resolveStyleUrl(styleUrl.url)),
+        ...templateInfo.templateStyleUrls.map((url) => resolveStyleUrl(url))
+      ]);
+    });
+  }
+  analyze(node, decorator) {
+    this.perf.eventCount(PerfEvent.AnalyzeComponent);
+    const containingFile = node.getSourceFile().fileName;
+    this.literalCache.delete(decorator);
+    let diagnostics;
+    let isPoisoned = false;
+    const directiveResult = extractDirectiveMetadata(node, decorator, this.reflector, this.importTracker, this.evaluator, this.refEmitter, this.referencesRegistry, this.isCore, this.annotateForClosureCompiler, this.compilationMode, this.elementSchemaRegistry.getDefaultComponentElementName(), this.strictStandalone, this.implicitStandaloneValue, this.emitDeclarationOnly);
+    if (directiveResult.jitForced) {
+      this.jitDeclarationRegistry.jitDeclarations.add(node);
+      return {};
+    }
+    const { decorator: component, metadata, inputs, outputs, hostDirectives, rawHostDirectives } = directiveResult;
+    const encapsulation = (this.compilationMode !== CompilationMode.LOCAL ? resolveEnumValue(this.evaluator, component, "encapsulation", "ViewEncapsulation", this.isCore) : resolveEncapsulationEnumValueLocally(component.get("encapsulation"))) ?? ViewEncapsulation2.Emulated;
+    let changeDetection = null;
+    if (this.compilationMode !== CompilationMode.LOCAL) {
+      changeDetection = resolveEnumValue(this.evaluator, component, "changeDetection", "ChangeDetectionStrategy", this.isCore);
+    } else if (component.has("changeDetection")) {
+      changeDetection = new o5.WrappedNodeExpr(component.get("changeDetection"));
+    }
+    let animations = null;
+    let legacyAnimationTriggerNames = null;
+    if (component.has("animations")) {
+      const animationExpression = component.get("animations");
+      animations = new o5.WrappedNodeExpr(animationExpression);
+      const animationsValue = this.evaluator.evaluate(animationExpression, legacyAnimationTriggerResolver);
+      legacyAnimationTriggerNames = { includesDynamicAnimations: false, staticTriggerNames: [] };
+      collectLegacyAnimationNames(animationsValue, legacyAnimationTriggerNames);
+    }
+    const relativeContextFilePath = this.rootDirs.reduce((previous, rootDir) => {
+      const candidate = relative(absoluteFrom(rootDir), absoluteFrom(containingFile));
+      if (previous === void 0 || candidate.length < previous.length) {
+        return candidate;
+      } else {
+        return previous;
+      }
+    }, void 0);
+    let viewProvidersRequiringFactory = null;
+    let providersRequiringFactory = null;
+    let wrappedViewProviders = null;
+    if (component.has("viewProviders")) {
+      const viewProviders = component.get("viewProviders");
+      viewProvidersRequiringFactory = resolveProvidersRequiringFactory(viewProviders, this.reflector, this.evaluator);
+      wrappedViewProviders = new o5.WrappedNodeExpr(this.annotateForClosureCompiler ? wrapFunctionExpressionsInParens(viewProviders) : viewProviders);
+    }
+    if (component.has("providers")) {
+      providersRequiringFactory = resolveProvidersRequiringFactory(component.get("providers"), this.reflector, this.evaluator);
+    }
+    let resolvedImports = null;
+    let resolvedDeferredImports = null;
+    let rawImports = component.get("imports") ?? null;
+    let rawDeferredImports = component.get("deferredImports") ?? null;
+    if ((rawImports || rawDeferredImports) && !metadata.isStandalone) {
+      if (diagnostics === void 0) {
+        diagnostics = [];
+      }
+      const importsField = rawImports ? "imports" : "deferredImports";
+      diagnostics.push(makeDiagnostic(ErrorCode.COMPONENT_NOT_STANDALONE, component.get(importsField), `'${importsField}' is only valid on a component that is standalone.`, [
+        makeRelatedInformation(node.name, `Did you forget to add 'standalone: true' to this @Component?`)
+      ]));
+      isPoisoned = true;
+    } else if (this.compilationMode !== CompilationMode.LOCAL && (rawImports || rawDeferredImports)) {
+      const importResolvers = combineResolvers([
+        createModuleWithProvidersResolver(this.reflector, this.isCore),
+        createForwardRefResolver(this.isCore)
+      ]);
+      const importDiagnostics = [];
+      if (rawImports) {
+        const expr = rawImports;
+        const imported = this.evaluator.evaluate(expr, importResolvers);
+        const { imports: flattened, diagnostics: diagnostics2 } = validateAndFlattenComponentImports(
+          imported,
+          expr,
+          false
+          /* isDeferred */
+        );
+        importDiagnostics.push(...diagnostics2);
+        resolvedImports = flattened;
+        rawImports = expr;
+      }
+      if (rawDeferredImports) {
+        const expr = rawDeferredImports;
+        const imported = this.evaluator.evaluate(expr, importResolvers);
+        const { imports: flattened, diagnostics: diagnostics2 } = validateAndFlattenComponentImports(
+          imported,
+          expr,
+          true
+          /* isDeferred */
+        );
+        importDiagnostics.push(...diagnostics2);
+        resolvedDeferredImports = flattened;
+        rawDeferredImports = expr;
+      }
+      if (importDiagnostics.length > 0) {
+        isPoisoned = true;
+        if (diagnostics === void 0) {
+          diagnostics = [];
+        }
+        diagnostics.push(...importDiagnostics);
+      }
+    }
+    let schemas = null;
+    if (component.has("schemas") && !metadata.isStandalone) {
+      if (diagnostics === void 0) {
+        diagnostics = [];
+      }
+      diagnostics.push(makeDiagnostic(ErrorCode.COMPONENT_NOT_STANDALONE, component.get("schemas"), `'schemas' is only valid on a component that is standalone.`));
+    } else if (this.compilationMode !== CompilationMode.LOCAL && component.has("schemas")) {
+      schemas = extractSchemas(component.get("schemas"), this.evaluator, "Component");
+    } else if (metadata.isStandalone) {
+      schemas = [];
+    }
+    let template;
+    if (this.preanalyzeTemplateCache.has(node)) {
+      const preanalyzed = this.preanalyzeTemplateCache.get(node);
+      this.preanalyzeTemplateCache.delete(node);
+      template = preanalyzed;
+    } else {
+      try {
+        const templateDecl = parseTemplateDeclaration(node, decorator, component, containingFile, this.evaluator, this.depTracker, this.resourceLoader, this.defaultPreserveWhitespaces);
+        template = extractTemplate(node, templateDecl, this.evaluator, this.depTracker, this.resourceLoader, {
+          enableI18nLegacyMessageIdFormat: this.enableI18nLegacyMessageIdFormat,
+          i18nNormalizeLineEndingsInICUs: this.i18nNormalizeLineEndingsInICUs,
+          usePoisonedData: this.usePoisonedData,
+          enableBlockSyntax: this.enableBlockSyntax,
+          enableLetSyntax: this.enableLetSyntax,
+          enableSelectorless: this.enableSelectorless,
+          preserveSignificantWhitespace: this.i18nPreserveSignificantWhitespace
+        }, this.compilationMode);
+        if (this.compilationMode === CompilationMode.LOCAL && template.errors && template.errors.length > 0) {
+          if (diagnostics === void 0) {
+            diagnostics = [];
+          }
+          diagnostics.push(...getTemplateDiagnostics(
+            template.errors,
+            // Type check ID is required as part of the ype check, mainly for mapping the
+            // diagnostic back to its source. But here we are generating the diagnostic outside
+            // of the type check context, and so we skip the template ID.
+            "",
+            template.sourceMapping
+          ));
+        }
+      } catch (e) {
+        if (e instanceof FatalDiagnosticError) {
+          diagnostics ??= [];
+          diagnostics.push(e.toDiagnostic());
+          isPoisoned = true;
+          template = createEmptyTemplate(node, component, containingFile);
+        } else {
+          throw e;
+        }
+      }
+    }
+    const templateResource = template.declaration.isInline ? { path: null, node: component.get("template") } : {
+      path: absoluteFrom(template.declaration.resolvedTemplateUrl),
+      node: template.sourceMapping.node
+    };
+    const relativeTemplatePath = getProjectRelativePath(templateResource.path ?? ts73.getOriginalNode(node).getSourceFile().fileName, this.rootDirs, this.compilerHost);
+    let selectorlessEnabled = false;
+    let localReferencedSymbols = null;
+    if (this.enableSelectorless) {
+      const templateAnalysis = analyzeTemplateForSelectorless(template.nodes);
+      selectorlessEnabled = templateAnalysis.isSelectorless;
+      localReferencedSymbols = templateAnalysis.localReferencedSymbols;
+    }
+    if (selectorlessEnabled) {
+      if (!metadata.isStandalone) {
+        isPoisoned = true;
+        diagnostics ??= [];
+        diagnostics.push(makeDiagnostic(ErrorCode.COMPONENT_NOT_STANDALONE, component.get("standalone") || node.name, `Cannot use selectorless with a component that is not standalone`));
+      } else if (rawImports || rawDeferredImports) {
+        isPoisoned = true;
+        diagnostics ??= [];
+        diagnostics.push(makeDiagnostic(ErrorCode.UNSUPPORTED_SELECTORLESS_COMPONENT_FIELD, rawImports || rawDeferredImports, `Cannot use the "${rawImports === null ? "deferredImports" : "imports"}" field in a selectorless component`));
+      }
+    }
+    let styles = [];
+    const externalStyles = [];
+    const hostBindingResources = extractHostBindingResources(directiveResult.hostBindingNodes);
+    const styleResources = extractInlineStyleResources(component);
+    const styleUrls = [
+      ...extractComponentStyleUrls(this.evaluator, component),
+      ..._extractTemplateStyleUrls(template)
+    ];
+    for (const styleUrl of styleUrls) {
+      try {
+        const resourceUrl = this.resourceLoader.resolve(styleUrl.url, containingFile);
+        if (this.externalRuntimeStyles) {
+          externalStyles.push(resourceUrl);
+          continue;
+        }
+        if (styleUrl.source === 2 && ts73.isStringLiteralLike(styleUrl.expression)) {
+          styleResources.add({
+            path: absoluteFrom(resourceUrl),
+            node: styleUrl.expression
+          });
+        }
+        const resourceStr = this.resourceLoader.load(resourceUrl);
+        styles.push(resourceStr);
+        if (this.depTracker !== null) {
+          this.depTracker.addResourceDependency(node.getSourceFile(), absoluteFrom(resourceUrl));
+        }
+      } catch {
+        if (this.depTracker !== null) {
+          this.depTracker.recordDependencyAnalysisFailure(node.getSourceFile());
+        }
+        if (diagnostics === void 0) {
+          diagnostics = [];
+        }
+        const resourceType = styleUrl.source === 2 ? 2 : 1;
+        diagnostics.push(makeResourceNotFoundError(styleUrl.url, styleUrl.expression, resourceType).toDiagnostic());
+      }
+    }
+    if ((encapsulation === ViewEncapsulation2.ShadowDom || encapsulation === ViewEncapsulation2.IsolatedShadowDom) && metadata.selector !== null) {
+      const selectorError = checkCustomElementSelectorForErrors(metadata.selector);
+      if (selectorError !== null) {
+        if (diagnostics === void 0) {
+          diagnostics = [];
+        }
+        diagnostics.push(makeDiagnostic(ErrorCode.COMPONENT_INVALID_SHADOW_DOM_SELECTOR, component.get("selector"), selectorError));
+      }
+    }
+    if (encapsulation === ViewEncapsulation2.IsolatedShadowDom) {
+      const contentNode = findContentNode(template.nodes);
+      if (contentNode !== null) {
+        if (diagnostics === void 0) {
+          diagnostics = [];
+        }
+        diagnostics.push(makeDiagnostic(ErrorCode.ISOLATED_SHADOW_DOM_INVALID_CONTENT_PROJECTION, component.get("template") ?? node.name, `ng-content projection is not supported with ViewEncapsulation.IsolatedShadowDom. Use native <slot> elements instead. Content will remain in the light DOM and be projected via slots.`));
+      }
+    }
+    let inlineStyles = null;
+    if (this.preanalyzeStylesCache.has(node)) {
+      inlineStyles = this.preanalyzeStylesCache.get(node);
+      this.preanalyzeStylesCache.delete(node);
+      if (inlineStyles?.length) {
+        if (this.externalRuntimeStyles) {
+          externalStyles.push(...inlineStyles);
+        } else {
+          styles.push(...inlineStyles);
+        }
+      }
+    } else {
+      if (this.resourceLoader.canPreprocess) {
+        throw new Error("Inline resource processing requires asynchronous preanalyze.");
+      }
+      if (component.has("styles")) {
+        const litStyles = parseDirectiveStyles(component, this.evaluator, this.compilationMode);
+        if (litStyles !== null) {
+          inlineStyles = [...litStyles];
+          styles.push(...litStyles);
+        }
+      }
+      if (template.styles.length > 0) {
+        styles.push(...template.styles);
+      }
+    }
+    let explicitlyDeferredTypes = null;
+    if (metadata.isStandalone && rawDeferredImports !== null) {
+      const deferredTypes = this.collectExplicitlyDeferredSymbols(rawDeferredImports);
+      for (const [deferredType, importDetails] of deferredTypes) {
+        explicitlyDeferredTypes ??= [];
+        explicitlyDeferredTypes.push({
+          symbolName: importDetails.name,
+          importPath: importDetails.from,
+          isDefaultImport: isDefaultImport(importDetails.node)
+        });
+        this.deferredSymbolTracker.markAsDeferrableCandidate(
+          deferredType,
+          importDetails.node,
+          node,
+          true
+          /* isExplicitlyDeferred */
+        );
+      }
+    }
+    const output = {
+      analysis: {
+        baseClass: readBaseClass(node, this.reflector, this.evaluator),
+        inputs,
+        inputFieldNamesFromMetadataArray: directiveResult.inputFieldNamesFromMetadataArray,
+        outputs,
+        hostDirectives,
+        rawHostDirectives,
+        selectorlessEnabled,
+        localReferencedSymbols,
+        meta: {
+          ...metadata,
+          template,
+          encapsulation,
+          changeDetection,
+          interpolation: template.interpolationConfig ?? DEFAULT_INTERPOLATION_CONFIG2,
+          styles,
+          externalStyles,
+          // These will be replaced during the compilation step, after all `NgModule`s have been
+          // analyzed and the full compilation scope for the component can be realized.
+          animations,
+          viewProviders: wrappedViewProviders,
+          i18nUseExternalIds: this.i18nUseExternalIds,
+          relativeContextFilePath,
+          rawImports: rawImports !== null ? new o5.WrappedNodeExpr(rawImports) : void 0,
+          relativeTemplatePath
+        },
+        typeCheckMeta: extractDirectiveTypeCheckMeta(node, inputs, this.reflector),
+        classMetadata: this.includeClassMetadata ? extractClassMetadata(node, this.reflector, this.isCore, this.annotateForClosureCompiler, (dec) => transformDecoratorResources(dec, component, styles, template)) : null,
+        classDebugInfo: extractClassDebugInfo(
+          node,
+          this.reflector,
+          this.compilerHost,
+          this.rootDirs,
+          /* forbidOrphanRenderering */
+          this.forbidOrphanRendering
+        ),
+        template,
+        providersRequiringFactory,
+        viewProvidersRequiringFactory,
+        inlineStyles,
+        styleUrls,
+        resources: {
+          styles: styleResources,
+          template: templateResource,
+          hostBindings: hostBindingResources
+        },
+        isPoisoned,
+        legacyAnimationTriggerNames,
+        rawImports,
+        resolvedImports,
+        rawDeferredImports,
+        resolvedDeferredImports,
+        explicitlyDeferredTypes,
+        schemas,
+        decorator: decorator?.node ?? null,
+        hostBindingNodes: directiveResult.hostBindingNodes
+      },
+      diagnostics
+    };
+    return output;
+  }
+  symbol(node, analysis) {
+    const typeParameters = extractSemanticTypeParameters(node);
+    return new ComponentSymbol(node, analysis.meta.selector, analysis.inputs, analysis.outputs, analysis.meta.exportAs, analysis.typeCheckMeta, typeParameters);
+  }
+  register(node, analysis) {
+    const ref = new Reference(node);
+    this.metaRegistry.registerDirectiveMetadata({
+      kind: MetaKind.Directive,
+      matchSource: MatchSource.Selector,
+      ref,
+      name: node.name.text,
+      selector: analysis.meta.selector,
+      exportAs: analysis.meta.exportAs,
+      inputs: analysis.inputs,
+      inputFieldNamesFromMetadataArray: analysis.inputFieldNamesFromMetadataArray,
+      outputs: analysis.outputs,
+      queries: analysis.meta.queries.map((query) => query.propertyName),
+      isComponent: true,
+      baseClass: analysis.baseClass,
+      hostDirectives: analysis.hostDirectives,
+      ...analysis.typeCheckMeta,
+      isPoisoned: analysis.isPoisoned,
+      isStructural: false,
+      isStandalone: analysis.meta.isStandalone,
+      isSignal: analysis.meta.isSignal,
+      imports: analysis.resolvedImports,
+      rawImports: analysis.rawImports,
+      deferredImports: analysis.resolvedDeferredImports,
+      animationTriggerNames: analysis.legacyAnimationTriggerNames,
+      schemas: analysis.schemas,
+      decorator: analysis.decorator,
+      assumedToExportProviders: false,
+      ngContentSelectors: analysis.template.ngContentSelectors,
+      preserveWhitespaces: analysis.template.preserveWhitespaces ?? false,
+      isExplicitlyDeferred: false,
+      selectorlessEnabled: analysis.selectorlessEnabled,
+      localReferencedSymbols: analysis.localReferencedSymbols
+    });
+    this.resourceRegistry.registerResources(analysis.resources, node);
+    this.injectableRegistry.registerInjectable(node, {
+      ctorDeps: analysis.meta.deps
+    });
+  }
+  index(context, node, analysis) {
+    if (analysis.isPoisoned && !this.usePoisonedData) {
+      return null;
+    }
+    const scope = this.scopeReader.getScopeForComponent(node);
+    const selector = analysis.meta.selector;
+    let matcher = null;
+    if (scope !== null) {
+      const isPoisoned = scope.kind === ComponentScopeKind.NgModule ? scope.compilation.isPoisoned : scope.isPoisoned;
+      if ((isPoisoned || scope.kind === ComponentScopeKind.NgModule && scope.exported.isPoisoned) && !this.usePoisonedData) {
+        return null;
+      }
+      matcher = createMatcherFromScope(scope, this.hostDirectivesResolver);
+    }
+    const binder = new R3TargetBinder2(matcher);
+    const boundTemplate = binder.bind({ template: analysis.template.diagNodes });
+    context.addComponent({
+      declaration: node,
+      selector,
+      boundTemplate,
+      templateMeta: {
+        isInline: analysis.template.declaration.isInline,
+        file: analysis.template.file
+      }
+    });
+    return null;
+  }
+  typeCheck(ctx, node, meta) {
+    if (!ts73.isClassDeclaration(node) || meta.isPoisoned && !this.usePoisonedData) {
+      return;
+    }
+    const ref = new Reference(node);
+    const scope = this.typeCheckScopeRegistry.getTypeCheckScope(ref);
+    if (scope.isPoisoned && !this.usePoisonedData) {
+      return;
+    }
+    const binder = new R3TargetBinder2(scope.matcher);
+    const templateContext = {
+      nodes: meta.template.diagNodes,
+      pipes: scope.pipes,
+      sourceMapping: meta.template.sourceMapping,
+      file: meta.template.file,
+      parseErrors: meta.template.errors,
+      preserveWhitespaces: meta.meta.template.preserveWhitespaces ?? false
+    };
+    const hostElement = this.typeCheckHostBindings ? createHostElement("component", meta.meta.selector, node, meta.hostBindingNodes.literal, meta.hostBindingNodes.bindingDecorators, meta.hostBindingNodes.listenerDecorators) : null;
+    const hostBindingsContext = hostElement === null || scope.directivesOnHost === null ? null : {
+      node: hostElement,
+      directives: scope.directivesOnHost,
+      sourceMapping: { type: "direct", node }
+    };
+    ctx.addDirective(ref, binder, scope.schemas, templateContext, hostBindingsContext, meta.meta.isStandalone);
+  }
+  extendedTemplateCheck(component, extendedTemplateChecker) {
+    return extendedTemplateChecker.getDiagnosticsForComponent(component);
+  }
+  templateSemanticsCheck(component, templateSemanticsChecker) {
+    return templateSemanticsChecker.getDiagnosticsForComponent(component);
+  }
+  resolve(node, analysis, symbol) {
+    const metadata = analysis.meta;
+    const diagnostics = [];
+    const context = getSourceFile(node);
+    const nonRemovableImports = this.deferredSymbolTracker.getNonRemovableDeferredImports(context, node);
+    if (nonRemovableImports.length > 0) {
+      for (const importDecl of nonRemovableImports) {
+        const diagnostic = makeDiagnostic(ErrorCode.DEFERRED_DEPENDENCY_IMPORTED_EAGERLY, importDecl, `This import contains symbols that are used both inside and outside of the \`@Component.deferredImports\` fields in the file. This renders all these defer imports useless as this import remains and its module is eagerly loaded. To fix this, make sure that all symbols from the import are *only* used within \`@Component.deferredImports\` arrays and there are no other references to those symbols present in this file.`);
+        diagnostics.push(diagnostic);
+      }
+      return { diagnostics };
+    }
+    let data;
+    if (this.compilationMode === CompilationMode.LOCAL) {
+      data = {
+        declarations: EMPTY_ARRAY2,
+        declarationListEmitMode: !analysis.meta.isStandalone || analysis.rawImports !== null ? 3 : 0,
+        deferPerBlockDependencies: this.locateDeferBlocksWithoutScope(analysis.template),
+        deferBlockDepsEmitMode: 1,
+        deferrableDeclToImportDecl: /* @__PURE__ */ new Map(),
+        deferPerComponentDependencies: analysis.explicitlyDeferredTypes ?? [],
+        hasDirectiveDependencies: true
+      };
+      if (this.localCompilationExtraImportsTracker === null) {
+        return { data };
+      }
+    } else {
+      data = {
+        declarations: EMPTY_ARRAY2,
+        declarationListEmitMode: 0,
+        deferPerBlockDependencies: /* @__PURE__ */ new Map(),
+        deferBlockDepsEmitMode: 0,
+        deferrableDeclToImportDecl: /* @__PURE__ */ new Map(),
+        deferPerComponentDependencies: [],
+        hasDirectiveDependencies: true
+      };
+    }
+    if (this.semanticDepGraphUpdater !== null && analysis.baseClass instanceof Reference) {
+      symbol.baseClass = this.semanticDepGraphUpdater.getSymbol(analysis.baseClass.node);
+    }
+    if (analysis.isPoisoned && !this.usePoisonedData) {
+      return {};
+    }
+    const scope = this.scopeReader.getScopeForComponent(node);
+    if (scope === null) {
+      data.deferPerBlockDependencies = this.locateDeferBlocksWithoutScope(metadata.template);
+    } else {
+      const { eagerlyUsed, deferBlocks, allDependencies, wholeTemplateUsed, pipes } = this.resolveComponentDependencies(node, context, analysis, scope, metadata, diagnostics);
+      const declarations = this.componentDependenciesToDeclarations(node, context, allDependencies, wholeTemplateUsed, pipes);
+      if (this.semanticDepGraphUpdater !== null) {
+        const getSemanticReference = (decl) => this.semanticDepGraphUpdater.getSemanticReference(decl.ref.node, decl.type);
+        symbol.usedDirectives = Array.from(declarations.values()).filter(isUsedDirective).map(getSemanticReference);
+        symbol.usedPipes = Array.from(declarations.values()).filter(isUsedPipe).map(getSemanticReference);
+      }
+      if (this.compilationMode !== CompilationMode.LOCAL) {
+        this.resolveDeferBlocks(node, scope, deferBlocks, declarations, data, analysis, eagerlyUsed);
+        data.hasDirectiveDependencies = !analysis.meta.isStandalone || allDependencies.some(({ kind, ref }) => {
+          return (kind === MetaKind.Directive || kind === MetaKind.NgModule) && wholeTemplateUsed.has(ref.node);
+        });
+      } else {
+        data.hasDirectiveDependencies = true;
+      }
+      this.handleDependencyCycles(node, context, scope, data, analysis, metadata, declarations, eagerlyUsed, symbol);
+    }
+    if (this.compilationMode !== CompilationMode.LOCAL) {
+      const nonLocalDiagnostics = this.getNonLocalDiagnostics(node, analysis);
+      if (nonLocalDiagnostics !== null) {
+        diagnostics.push(...nonLocalDiagnostics);
+      }
+    }
+    if (diagnostics.length > 0) {
+      return { diagnostics };
+    }
+    return { data };
+  }
+  xi18n(ctx, node, analysis) {
+    ctx.updateFromTemplate(analysis.template.content, analysis.template.declaration.resolvedTemplateUrl, analysis.template.interpolationConfig ?? DEFAULT_INTERPOLATION_CONFIG2);
+  }
+  updateResources(node, analysis) {
+    const containingFile = node.getSourceFile().fileName;
+    const templateDecl = analysis.template.declaration;
+    if (!templateDecl.isInline) {
+      analysis.template = extractTemplate(node, templateDecl, this.evaluator, this.depTracker, this.resourceLoader, this.extractTemplateOptions, this.compilationMode);
+    }
+    let styles = [];
+    if (analysis.styleUrls !== null) {
+      for (const styleUrl of analysis.styleUrls) {
+        try {
+          const resolvedStyleUrl = this.resourceLoader.resolve(styleUrl.url, containingFile);
+          const styleText = this.resourceLoader.load(resolvedStyleUrl);
+          styles.push(styleText);
+        } catch (e) {
+        }
+      }
+    }
+    if (analysis.inlineStyles !== null) {
+      for (const styleText of analysis.inlineStyles) {
+        styles.push(styleText);
+      }
+    }
+    for (const styleText of analysis.template.styles) {
+      styles.push(styleText);
+    }
+    analysis.meta.styles = styles.filter((s) => s.trim().length > 0);
+  }
+  compileFull(node, analysis, resolution, pool) {
+    if (analysis.template.errors !== null && analysis.template.errors.length > 0) {
+      return [];
+    }
+    const perComponentDeferredDeps = this.canDeferDeps ? this.resolveAllDeferredDependencies(resolution) : null;
+    const defer = this.compileDeferBlocks(resolution);
+    const meta = {
+      ...analysis.meta,
+      ...resolution,
+      defer
+    };
+    const fac = compileNgFactoryDefField(toFactoryMetadata(meta, FactoryTarget3.Component));
+    if (perComponentDeferredDeps !== null) {
+      removeDeferrableTypesFromComponentDecorator(analysis, perComponentDeferredDeps);
+    }
+    const def = compileComponentFromMetadata(meta, pool, this.getNewBindingParser());
+    const inputTransformFields = compileInputTransformFields(analysis.inputs);
+    const classMetadata = analysis.classMetadata !== null ? compileComponentClassMetadata(analysis.classMetadata, perComponentDeferredDeps).toStmt() : null;
+    const debugInfo = analysis.classDebugInfo !== null ? compileClassDebugInfo(analysis.classDebugInfo).toStmt() : null;
+    const hmrMeta = this.enableHmr ? extractHmrMetatadata(node, this.reflector, this.evaluator, this.compilerHost, this.rootDirs, def, fac, defer, classMetadata, debugInfo) : null;
+    const hmrInitializer = hmrMeta ? compileHmrInitializer(hmrMeta).toStmt() : null;
+    const deferrableImports = this.canDeferDeps ? this.deferredSymbolTracker.getDeferrableImportDecls() : null;
+    return compileResults(fac, def, classMetadata, "\u0275cmp", inputTransformFields, deferrableImports, debugInfo, hmrInitializer);
+  }
+  compilePartial(node, analysis, resolution) {
+    if (analysis.template.errors !== null && analysis.template.errors.length > 0) {
+      return [];
+    }
+    const templateInfo = {
+      content: analysis.template.content,
+      sourceUrl: analysis.template.declaration.resolvedTemplateUrl,
+      isInline: analysis.template.declaration.isInline,
+      inlineTemplateLiteralExpression: analysis.template.sourceMapping.type === "direct" ? new o5.WrappedNodeExpr(analysis.template.sourceMapping.node) : null
+    };
+    const perComponentDeferredDeps = this.canDeferDeps ? this.resolveAllDeferredDependencies(resolution) : null;
+    const defer = this.compileDeferBlocks(resolution);
+    const meta = {
+      ...analysis.meta,
+      ...resolution,
+      defer
+    };
+    const fac = compileDeclareFactory(toFactoryMetadata(meta, FactoryTarget3.Component));
+    const inputTransformFields = compileInputTransformFields(analysis.inputs);
+    const def = compileDeclareComponentFromMetadata(meta, analysis.template, templateInfo);
+    const classMetadata = analysis.classMetadata !== null ? compileComponentDeclareClassMetadata(analysis.classMetadata, perComponentDeferredDeps).toStmt() : null;
+    const hmrMeta = this.enableHmr ? extractHmrMetatadata(node, this.reflector, this.evaluator, this.compilerHost, this.rootDirs, def, fac, defer, classMetadata, null) : null;
+    const hmrInitializer = hmrMeta ? compileHmrInitializer(hmrMeta).toStmt() : null;
+    const deferrableImports = this.canDeferDeps ? this.deferredSymbolTracker.getDeferrableImportDecls() : null;
+    return compileResults(fac, def, classMetadata, "\u0275cmp", inputTransformFields, deferrableImports, null, hmrInitializer);
+  }
+  compileLocal(node, analysis, resolution, pool) {
+    const deferrableTypes = this.canDeferDeps ? analysis.explicitlyDeferredTypes : null;
+    const defer = this.compileDeferBlocks(resolution);
+    const meta = {
+      ...analysis.meta,
+      ...resolution,
+      defer
+    };
+    if (deferrableTypes !== null) {
+      removeDeferrableTypesFromComponentDecorator(analysis, deferrableTypes);
+    }
+    const fac = compileNgFactoryDefField(toFactoryMetadata(meta, FactoryTarget3.Component));
+    const def = compileComponentFromMetadata(meta, pool, this.getNewBindingParser());
+    const inputTransformFields = compileInputTransformFields(analysis.inputs);
+    const classMetadata = analysis.classMetadata !== null ? compileComponentClassMetadata(analysis.classMetadata, deferrableTypes).toStmt() : null;
+    const debugInfo = analysis.classDebugInfo !== null ? compileClassDebugInfo(analysis.classDebugInfo).toStmt() : null;
+    const hmrMeta = this.enableHmr ? extractHmrMetatadata(node, this.reflector, this.evaluator, this.compilerHost, this.rootDirs, def, fac, defer, classMetadata, debugInfo) : null;
+    const hmrInitializer = hmrMeta ? compileHmrInitializer(hmrMeta).toStmt() : null;
+    const deferrableImports = this.canDeferDeps ? this.deferredSymbolTracker.getDeferrableImportDecls() : null;
+    return compileResults(fac, def, classMetadata, "\u0275cmp", inputTransformFields, deferrableImports, debugInfo, hmrInitializer);
+  }
+  compileHmrUpdateDeclaration(node, analysis, resolution) {
+    if (analysis.template.errors !== null && analysis.template.errors.length > 0) {
+      return null;
+    }
+    const pool = new ConstantPool2();
+    const defer = this.compileDeferBlocks(resolution);
+    const meta = {
+      ...analysis.meta,
+      ...resolution,
+      defer
+    };
+    const fac = compileNgFactoryDefField(toFactoryMetadata(meta, FactoryTarget3.Component));
+    const def = compileComponentFromMetadata(meta, pool, this.getNewBindingParser());
+    const classMetadata = analysis.classMetadata !== null ? compileComponentClassMetadata(analysis.classMetadata, null).toStmt() : null;
+    const debugInfo = analysis.classDebugInfo !== null ? compileClassDebugInfo(analysis.classDebugInfo).toStmt() : null;
+    const hmrMeta = this.enableHmr ? extractHmrMetatadata(node, this.reflector, this.evaluator, this.compilerHost, this.rootDirs, def, fac, defer, classMetadata, debugInfo) : null;
+    const res = compileResults(fac, def, classMetadata, "\u0275cmp", null, null, debugInfo, null);
+    return hmrMeta === null || res.length === 0 ? null : getHmrUpdateDeclaration(res, pool.statements, hmrMeta, node);
+  }
+  /**
+   * Determines the dependencies of a component and
+   * categorizes them based on how they were introduced.
+   */
+  resolveComponentDependencies(node, context, analysis, scope, metadata, diagnostics) {
+    const isModuleScope = scope.kind === ComponentScopeKind.NgModule;
+    const isSelectorlessScope = scope.kind === ComponentScopeKind.Selectorless;
+    const pipes = /* @__PURE__ */ new Map();
+    const explicitlyDeferredDependencies = scope.kind === ComponentScopeKind.Standalone ? scope.deferredDependencies : null;
+    const dependencies = [];
+    if (isSelectorlessScope) {
+      for (const [localName, dep] of scope.dependencies) {
+        if (dep.kind === MetaKind.Pipe) {
+          pipes.set(localName, dep);
+        }
+        dependencies.push(dep);
+      }
+    } else {
+      const scopeDeps = isModuleScope ? scope.compilation.dependencies : scope.dependencies;
+      for (const dep of scopeDeps) {
+        if (dep.kind === MetaKind.Pipe && dep.name !== null) {
+          pipes.set(dep.name, dep);
+        }
+        dependencies.push(dep);
+      }
+    }
+    if (isModuleScope && context.fileName !== getSourceFile(scope.ngModule).fileName) {
+      this.localCompilationExtraImportsTracker?.markFileForExtraImportGeneration(context);
+    }
+    if (!isSelectorlessScope && metadata.isStandalone && analysis.rawDeferredImports !== null && explicitlyDeferredDependencies !== null && explicitlyDeferredDependencies.length > 0) {
+      const diagnostic = validateNoImportOverlap(dependencies, explicitlyDeferredDependencies, analysis.rawDeferredImports);
+      if (diagnostic !== null) {
+        diagnostics.push(diagnostic);
+      }
+    }
+    const binder = new R3TargetBinder2(createMatcherFromScope(scope, this.hostDirectivesResolver));
+    let allDependencies = dependencies;
+    let deferBlockBinder = binder;
+    if (explicitlyDeferredDependencies !== null && explicitlyDeferredDependencies.length > 0) {
+      allDependencies = [...explicitlyDeferredDependencies, ...dependencies];
+      const deferBlockMatcher = new SelectorMatcher3();
+      for (const dep of allDependencies) {
+        if (dep.kind === MetaKind.Pipe && dep.name !== null) {
+          pipes.set(dep.name, dep);
+        } else if (dep.kind === MetaKind.Directive && dep.selector !== null) {
+          deferBlockMatcher.addSelectables(CssSelector5.parse(dep.selector), [dep]);
+        }
+      }
+      deferBlockBinder = new R3TargetBinder2(deferBlockMatcher);
+    }
+    const bound = binder.bind({ template: metadata.template.nodes });
+    const deferBlocks = /* @__PURE__ */ new Map();
+    for (const deferBlock of bound.getDeferBlocks()) {
+      deferBlocks.set(deferBlock, deferBlockBinder.bind({ template: deferBlock.children }));
+    }
+    const eagerlyUsed = /* @__PURE__ */ new Set();
+    if (this.enableHmr) {
+      for (const dep of dependencies) {
+        if (dep.ref.node !== node) {
+          eagerlyUsed.add(dep.ref.node);
+        } else {
+          const used = bound.getEagerlyUsedDirectives();
+          if (used.some((current) => current.ref.node === node)) {
+            eagerlyUsed.add(node);
+          }
+        }
+      }
+    } else {
+      for (const dir of bound.getEagerlyUsedDirectives()) {
+        eagerlyUsed.add(dir.ref.node);
+      }
+      for (const name of bound.getEagerlyUsedPipes()) {
+        if (pipes.has(name)) {
+          eagerlyUsed.add(pipes.get(name).ref.node);
+        }
+      }
+    }
+    const wholeTemplateUsed = new Set(eagerlyUsed);
+    for (const bound2 of deferBlocks.values()) {
+      for (const dir of bound2.getUsedDirectives()) {
+        wholeTemplateUsed.add(dir.ref.node);
+      }
+      for (const name of bound2.getUsedPipes()) {
+        if (!pipes.has(name)) {
+          continue;
+        }
+        wholeTemplateUsed.add(pipes.get(name).ref.node);
+      }
+    }
+    return { allDependencies, eagerlyUsed, wholeTemplateUsed, deferBlocks, pipes };
+  }
+  /**
+   * Converts component dependencies into declarations by
+   * resolving their metadata and deduplicating them.
+   */
+  componentDependenciesToDeclarations(node, context, allDependencies, wholeTemplateUsed, pipes) {
+    const declarations = /* @__PURE__ */ new Map();
+    for (const dep of allDependencies) {
+      if (declarations.has(dep.ref.node)) {
+        continue;
+      }
+      switch (dep.kind) {
+        case MetaKind.Directive:
+          if (!wholeTemplateUsed.has(dep.ref.node) || dep.matchSource !== MatchSource.Selector) {
+            continue;
+          }
+          const dirType = this.refEmitter.emit(dep.ref, context);
+          assertSuccessfulReferenceEmit(dirType, node.name, dep.isComponent ? "component" : "directive");
+          declarations.set(dep.ref.node, {
+            kind: R3TemplateDependencyKind.Directive,
+            ref: dep.ref,
+            type: dirType.expression,
+            importedFile: dirType.importedFile,
+            selector: dep.selector,
+            inputs: dep.inputs.propertyNames,
+            outputs: dep.outputs.propertyNames,
+            exportAs: dep.exportAs,
+            isComponent: dep.isComponent
+          });
+          break;
+        case MetaKind.NgModule:
+          const ngModuleType = this.refEmitter.emit(dep.ref, context);
+          assertSuccessfulReferenceEmit(ngModuleType, node.name, "NgModule");
+          declarations.set(dep.ref.node, {
+            kind: R3TemplateDependencyKind.NgModule,
+            type: ngModuleType.expression,
+            importedFile: ngModuleType.importedFile
+          });
+          break;
+      }
+    }
+    for (const [localName, dep] of pipes) {
+      if (!wholeTemplateUsed.has(dep.ref.node)) {
+        continue;
+      }
+      const pipeType = this.refEmitter.emit(dep.ref, context);
+      assertSuccessfulReferenceEmit(pipeType, node.name, "pipe");
+      declarations.set(dep.ref.node, {
+        kind: R3TemplateDependencyKind.Pipe,
+        type: pipeType.expression,
+        // Use the local name for pipes to account for selectorless.
+        name: localName,
+        ref: dep.ref,
+        importedFile: pipeType.importedFile
+      });
+    }
+    return declarations;
+  }
+  /** Handles any cycles in the dependencies of a component. */
+  handleDependencyCycles(node, context, scope, data, analysis, metadata, declarations, eagerlyUsed, symbol) {
+    const eagerDeclarations = Array.from(declarations.values()).filter((decl) => {
+      return decl.kind === R3TemplateDependencyKind.NgModule || eagerlyUsed.has(decl.ref.node);
+    });
+    const cyclesFromDirectives = /* @__PURE__ */ new Map();
+    const cyclesFromPipes = /* @__PURE__ */ new Map();
+    if (!metadata.isStandalone) {
+      for (const usedDep of eagerDeclarations) {
+        const cycle = this._checkForCyclicImport(usedDep.importedFile, usedDep.type, context);
+        if (cycle !== null) {
+          switch (usedDep.kind) {
+            case R3TemplateDependencyKind.Directive:
+              cyclesFromDirectives.set(usedDep, cycle);
+              break;
+            case R3TemplateDependencyKind.Pipe:
+              cyclesFromPipes.set(usedDep, cycle);
+              break;
+          }
+        }
+      }
+    }
+    const standaloneImportMayBeForwardDeclared = analysis.resolvedImports !== null && analysis.resolvedImports.some((ref) => ref.synthetic);
+    const cycleDetected = cyclesFromDirectives.size !== 0 || cyclesFromPipes.size !== 0;
+    if (!cycleDetected) {
+      for (const { type, importedFile } of eagerDeclarations) {
+        this.maybeRecordSyntheticImport(importedFile, type, context);
+      }
+      const declarationIsForwardDeclared = eagerDeclarations.some((decl) => isExpressionForwardReference(decl.type, node.name, context));
+      if (this.compilationMode !== CompilationMode.LOCAL && (declarationIsForwardDeclared || standaloneImportMayBeForwardDeclared)) {
+        data.declarationListEmitMode = 1;
+      }
+      data.declarations = eagerDeclarations;
+      if (this.compilationMode === CompilationMode.LOCAL && this.localCompilationExtraImportsTracker !== null) {
+        for (const { type } of eagerDeclarations) {
+          if (type instanceof ExternalExpr10 && type.value.moduleName) {
+            this.localCompilationExtraImportsTracker.addImportForFile(context, type.value.moduleName);
+          }
+        }
+      }
+    } else if (this.cycleHandlingStrategy === 0) {
+      this.scopeRegistry.setComponentRemoteScope(node, eagerDeclarations.filter(isUsedDirective).map((dir) => dir.ref), eagerDeclarations.filter(isUsedPipe).map((pipe) => pipe.ref));
+      symbol.isRemotelyScoped = true;
+      if (this.semanticDepGraphUpdater !== null && scope.kind === ComponentScopeKind.NgModule && scope.ngModule !== null) {
+        const moduleSymbol = this.semanticDepGraphUpdater.getSymbol(scope.ngModule);
+        if (!(moduleSymbol instanceof NgModuleSymbol)) {
+          throw new Error(`AssertionError: Expected ${scope.ngModule.name} to be an NgModuleSymbol.`);
+        }
+        moduleSymbol.addRemotelyScopedComponent(symbol, symbol.usedDirectives, symbol.usedPipes);
+      }
+    } else {
+      const relatedMessages = [];
+      for (const [dir, cycle] of cyclesFromDirectives) {
+        relatedMessages.push(makeCyclicImportInfo(dir.ref, dir.isComponent ? "component" : "directive", cycle));
+      }
+      for (const [pipe, cycle] of cyclesFromPipes) {
+        relatedMessages.push(makeCyclicImportInfo(pipe.ref, "pipe", cycle));
+      }
+      throw new FatalDiagnosticError(ErrorCode.IMPORT_CYCLE_DETECTED, node, "One or more import cycles would need to be created to compile this component, which is not supported by the current compiler configuration.", relatedMessages);
+    }
+  }
+  /** Produces diagnostics that require more than local information. */
+  getNonLocalDiagnostics(node, analysis) {
+    if (this.compilationMode === CompilationMode.LOCAL) {
+      throw new Error("Method cannot be called in local compilation mode.");
+    }
+    let diagnostics = null;
+    if (analysis.resolvedImports !== null && analysis.rawImports !== null) {
+      const importDiagnostics = validateStandaloneImports(
+        analysis.resolvedImports,
+        analysis.rawImports,
+        this.metaReader,
+        this.scopeReader,
+        false
+        /* isDeferredImport */
+      );
+      diagnostics ??= [];
+      diagnostics.push(...importDiagnostics);
+    }
+    if (analysis.resolvedDeferredImports !== null && analysis.rawDeferredImports !== null) {
+      const importDiagnostics = validateStandaloneImports(
+        analysis.resolvedDeferredImports,
+        analysis.rawDeferredImports,
+        this.metaReader,
+        this.scopeReader,
+        true
+        /* isDeferredImport */
+      );
+      diagnostics ??= [];
+      diagnostics.push(...importDiagnostics);
+    }
+    if (analysis.providersRequiringFactory !== null && analysis.meta.providers instanceof o5.WrappedNodeExpr) {
+      const providerDiagnostics = getProviderDiagnostics(analysis.providersRequiringFactory, analysis.meta.providers.node, this.injectableRegistry);
+      diagnostics ??= [];
+      diagnostics.push(...providerDiagnostics);
+    }
+    if (analysis.viewProvidersRequiringFactory !== null && analysis.meta.viewProviders instanceof o5.WrappedNodeExpr) {
+      const viewProviderDiagnostics = getProviderDiagnostics(analysis.viewProvidersRequiringFactory, analysis.meta.viewProviders.node, this.injectableRegistry);
+      diagnostics ??= [];
+      diagnostics.push(...viewProviderDiagnostics);
+    }
+    const directiveDiagnostics = getDirectiveDiagnostics(node, this.injectableRegistry, this.evaluator, this.reflector, this.scopeRegistry, this.strictCtorDeps, "Component");
+    if (directiveDiagnostics !== null) {
+      diagnostics ??= [];
+      diagnostics.push(...directiveDiagnostics);
+    }
+    const hostDirectivesDiagnostics = analysis.hostDirectives && analysis.rawHostDirectives ? validateHostDirectives(analysis.rawHostDirectives, analysis.hostDirectives, this.metaReader) : null;
+    if (hostDirectivesDiagnostics !== null) {
+      diagnostics ??= [];
+      diagnostics.push(...hostDirectivesDiagnostics);
+    }
+    return diagnostics;
+  }
+  /**
+   * Locates defer blocks in case scope information is not available.
+   * For example, this happens in the local compilation mode.
+   */
+  locateDeferBlocksWithoutScope(template) {
+    const deferBlocks = /* @__PURE__ */ new Map();
+    const directivelessBinder = new R3TargetBinder2(null);
+    const bound = directivelessBinder.bind({ template: template.nodes });
+    const deferredBlocks = bound.getDeferBlocks();
+    for (const block of deferredBlocks) {
+      deferBlocks.set(block, []);
+    }
+    return deferBlocks;
+  }
+  /**
+   * Computes a list of deferrable symbols based on dependencies from
+   * the `@Component.imports` field and their usage in `@defer` blocks.
+   */
+  resolveAllDeferredDependencies(resolution) {
+    const seenDeps = /* @__PURE__ */ new Set();
+    const deferrableTypes = [];
+    for (const [_, deps] of resolution.deferPerBlockDependencies) {
+      for (const deferBlockDep of deps) {
+        const node = deferBlockDep.declaration.node;
+        const importDecl = resolution.deferrableDeclToImportDecl.get(node) ?? null;
+        if (importDecl !== null && this.deferredSymbolTracker.canDefer(importDecl)) {
+          deferBlockDep.isDeferrable = true;
+          deferBlockDep.importPath = importDecl.moduleSpecifier.text;
+          deferBlockDep.isDefaultImport = isDefaultImport(importDecl);
+          if (!seenDeps.has(node)) {
+            seenDeps.add(node);
+            deferrableTypes.push(deferBlockDep);
+          }
+        }
+      }
+    }
+    return deferrableTypes;
+  }
+  /**
+   * Collects deferrable symbols from the `@Component.deferredImports` field.
+   */
+  collectExplicitlyDeferredSymbols(rawDeferredImports) {
+    const deferredTypes = /* @__PURE__ */ new Map();
+    if (!ts73.isArrayLiteralExpression(rawDeferredImports)) {
+      return deferredTypes;
+    }
+    for (const element of rawDeferredImports.elements) {
+      const node = tryUnwrapForwardRef(element, this.reflector) || element;
+      if (!ts73.isIdentifier(node)) {
+        continue;
+      }
+      const imp = this.reflector.getImportOfIdentifier(node);
+      if (imp !== null) {
+        deferredTypes.set(node, imp);
+      }
+    }
+    return deferredTypes;
+  }
+  /**
+   * Check whether adding an import from `origin` to the source-file corresponding to `expr` would
+   * create a cyclic import.
+   *
+   * @returns a `Cycle` object if a cycle would be created, otherwise `null`.
+   */
+  _checkForCyclicImport(importedFile, expr, origin) {
+    const imported = resolveImportedFile(this.moduleResolver, importedFile, expr, origin);
+    if (imported === null) {
+      return null;
+    }
+    return this.cycleAnalyzer.wouldCreateCycle(origin, imported);
+  }
+  maybeRecordSyntheticImport(importedFile, expr, origin) {
+    const imported = resolveImportedFile(this.moduleResolver, importedFile, expr, origin);
+    if (imported === null) {
+      return;
+    }
+    this.cycleAnalyzer.recordSyntheticImport(origin, imported);
+  }
+  /**
+   * Resolves information about defer blocks dependencies to make it
+   * available for the final `compile` step.
+   */
+  resolveDeferBlocks(componentClassDecl, scope, deferBlocks, deferrableDecls, resolutionData, analysisData, eagerlyUsedDecls) {
+    const allDeferredDecls = /* @__PURE__ */ new Set();
+    for (const [deferBlock, bound] of deferBlocks) {
+      const usedDirectives = new Set(bound.getEagerlyUsedDirectives().map((d) => d.ref.node));
+      const usedPipes = new Set(bound.getEagerlyUsedPipes());
+      let deps;
+      if (resolutionData.deferPerBlockDependencies.has(deferBlock)) {
+        deps = resolutionData.deferPerBlockDependencies.get(deferBlock);
+      } else {
+        deps = [];
+        resolutionData.deferPerBlockDependencies.set(deferBlock, deps);
+      }
+      for (const decl of Array.from(deferrableDecls.values())) {
+        if (decl.kind === R3TemplateDependencyKind.NgModule) {
+          continue;
+        }
+        if (decl.kind === R3TemplateDependencyKind.Directive && !usedDirectives.has(decl.ref.node)) {
+          continue;
+        }
+        if (decl.kind === R3TemplateDependencyKind.Pipe && !usedPipes.has(decl.name)) {
+          continue;
+        }
+        deps.push({
+          typeReference: decl.type,
+          symbolName: decl.ref.node.name.text,
+          isDeferrable: false,
+          importPath: null,
+          isDefaultImport: false,
+          declaration: decl.ref
+        });
+        allDeferredDecls.add(decl.ref.node);
+      }
+    }
+    if (analysisData.meta.isStandalone) {
+      if (analysisData.rawImports !== null && ts73.isArrayLiteralExpression(analysisData.rawImports)) {
+        for (const element of analysisData.rawImports.elements) {
+          this.registerDeferrableCandidate(componentClassDecl, element, false, allDeferredDecls, eagerlyUsedDecls, resolutionData);
+        }
+      }
+      if (analysisData.rawDeferredImports !== null && ts73.isArrayLiteralExpression(analysisData.rawDeferredImports)) {
+        for (const element of analysisData.rawDeferredImports.elements) {
+          this.registerDeferrableCandidate(componentClassDecl, element, false, allDeferredDecls, eagerlyUsedDecls, resolutionData);
+        }
+      }
+      if (scope.kind === ComponentScopeKind.Selectorless) {
+        for (const identifier of scope.dependencyIdentifiers) {
+          this.registerDeferrableCandidate(componentClassDecl, identifier, false, allDeferredDecls, eagerlyUsedDecls, resolutionData);
+        }
+      }
+    }
+  }
+  /**
+   * Inspects provided imports expression (either `@Component.imports` or
+   * `@Component.deferredImports`) and registers imported types as deferrable
+   * candidates.
+   */
+  registerDeferrableCandidate(componentClassDecl, element, isDeferredImport, allDeferredDecls, eagerlyUsedDecls, resolutionData) {
+    const node = tryUnwrapForwardRef(element, this.reflector) || element;
+    if (!ts73.isIdentifier(node)) {
+      return;
+    }
+    const imp = this.reflector.getImportOfIdentifier(node);
+    if (imp === null) {
+      return;
+    }
+    const decl = this.reflector.getDeclarationOfIdentifier(node);
+    if (decl === null) {
+      return;
+    }
+    if (!isNamedClassDeclaration(decl.node)) {
+      return;
+    }
+    if (!allDeferredDecls.has(decl.node)) {
+      return;
+    }
+    if (eagerlyUsedDecls.has(decl.node)) {
+      return;
+    }
+    const dirMeta = this.metaReader.getDirectiveMetadata(new Reference(decl.node));
+    if (dirMeta !== null && !dirMeta.isStandalone) {
+      return;
+    }
+    const pipeMeta = this.metaReader.getPipeMetadata(new Reference(decl.node));
+    if (pipeMeta !== null && !pipeMeta.isStandalone) {
+      return;
+    }
+    if (dirMeta === null && pipeMeta === null) {
+      return;
+    }
+    resolutionData.deferrableDeclToImportDecl.set(decl.node, imp.node);
+    this.deferredSymbolTracker.markAsDeferrableCandidate(node, imp.node, componentClassDecl, isDeferredImport);
+  }
+  compileDeferBlocks(resolution) {
+    const { deferBlockDepsEmitMode: mode, deferPerBlockDependencies: perBlockDeps, deferPerComponentDependencies: perComponentDeps } = resolution;
+    if (mode === 0) {
+      if (!perBlockDeps) {
+        throw new Error("Internal error: deferPerBlockDependencies must be present when compiling in PerBlock mode");
+      }
+      const blocks = /* @__PURE__ */ new Map();
+      for (const [block, dependencies] of perBlockDeps) {
+        blocks.set(block, dependencies.length === 0 ? null : compileDeferResolverFunction({ mode, dependencies }));
+      }
+      return { mode, blocks };
+    }
+    if (mode === 1) {
+      if (!perComponentDeps) {
+        throw new Error("Internal error: deferPerComponentDependencies must be present in PerComponent mode");
+      }
+      return {
+        mode,
+        dependenciesFn: perComponentDeps.length === 0 ? null : compileDeferResolverFunction({ mode, dependencies: perComponentDeps })
+      };
+    }
+    throw new Error(`Invalid deferBlockDepsEmitMode. Cannot compile deferred block metadata.`);
+  }
+  /** Creates a new binding parser. */
+  getNewBindingParser() {
+    return makeBindingParser3(void 0, this.enableSelectorless);
+  }
+};
+function createMatcherFromScope(scope, hostDirectivesResolver) {
+  if (scope.kind === ComponentScopeKind.Selectorless) {
+    const registry = /* @__PURE__ */ new Map();
+    for (const [name, dep] of scope.dependencies) {
+      if (dep.kind === MetaKind.Directive) {
+        registry.set(name, [dep, ...hostDirectivesResolver.resolve(dep)]);
+      }
+    }
+    return new SelectorlessMatcher2(registry);
+  }
+  const matcher = new SelectorMatcher3();
+  const dependencies = scope.kind === ComponentScopeKind.NgModule ? scope.compilation.dependencies : scope.dependencies;
+  for (const dep of dependencies) {
+    if (dep.kind === MetaKind.Directive && dep.selector !== null) {
+      matcher.addSelectables(CssSelector5.parse(dep.selector), [dep]);
+    }
+  }
+  return matcher;
+}
+function removeDeferrableTypesFromComponentDecorator(analysis, deferrableTypes) {
+  if (analysis.classMetadata) {
+    const deferrableSymbols = new Set(deferrableTypes.map((t) => t.symbolName));
+    const rewrittenDecoratorsNode = removeIdentifierReferences(analysis.classMetadata.decorators.node, deferrableSymbols);
+    analysis.classMetadata.decorators = new o5.WrappedNodeExpr(rewrittenDecoratorsNode);
+  }
+}
+function validateNoImportOverlap(eagerDeps, deferredDeps, rawDeferredImports) {
+  let diagnostic = null;
+  const eagerDepsSet = /* @__PURE__ */ new Set();
+  for (const eagerDep of eagerDeps) {
+    eagerDepsSet.add(eagerDep.ref.node);
+  }
+  for (const deferredDep of deferredDeps) {
+    if (eagerDepsSet.has(deferredDep.ref.node)) {
+      const classInfo = deferredDep.ref.debugName ? `The \`${deferredDep.ref.debugName}\`` : "One of the dependencies";
+      diagnostic = makeDiagnostic(ErrorCode.DEFERRED_DEPENDENCY_IMPORTED_EAGERLY, getDiagnosticNode(deferredDep.ref, rawDeferredImports), `\`${classInfo}\` is imported via both \`@Component.imports\` and \`@Component.deferredImports\`. To fix this, make sure that dependencies are imported only once.`);
+      break;
+    }
+  }
+  return diagnostic;
+}
+function validateStandaloneImports(importRefs, importExpr, metaReader, scopeReader, isDeferredImport) {
+  const diagnostics = [];
+  for (const ref of importRefs) {
+    const dirMeta = metaReader.getDirectiveMetadata(ref);
+    if (dirMeta !== null) {
+      if (!dirMeta.isStandalone) {
+        diagnostics.push(makeNotStandaloneDiagnostic(scopeReader, ref, importExpr, dirMeta.isComponent ? "component" : "directive"));
+      }
+      continue;
+    }
+    const pipeMeta = metaReader.getPipeMetadata(ref);
+    if (pipeMeta !== null) {
+      if (!pipeMeta.isStandalone) {
+        diagnostics.push(makeNotStandaloneDiagnostic(scopeReader, ref, importExpr, "pipe"));
+      }
+      continue;
+    }
+    const ngModuleMeta = metaReader.getNgModuleMetadata(ref);
+    if (!isDeferredImport && ngModuleMeta !== null) {
+      continue;
+    }
+    const error = isDeferredImport ? makeUnknownComponentDeferredImportDiagnostic(ref, importExpr) : makeUnknownComponentImportDiagnostic(ref, importExpr);
+    diagnostics.push(error);
+  }
+  return diagnostics;
+}
+function isDefaultImport(node) {
+  return node.importClause !== void 0 && node.importClause.namedBindings === void 0;
+}
+function findContentNode(nodes) {
+  for (const node of nodes) {
+    if (node.name === "ng-content") {
+      return node;
+    }
+    if (node.children && node.children.length > 0) {
+      const found = findContentNode(node.children);
+      if (found !== null) {
+        return found;
+      }
+    }
+  }
+  return null;
+}
+
+// packages/compiler-cli/src/ngtsc/annotations/src/injectable.js
+import { compileClassMetadata as compileClassMetadata3, compileDeclareClassMetadata as compileDeclareClassMetadata3, compileDeclareInjectableFromMetadata, compileInjectable, createMayBeForwardRefExpression as createMayBeForwardRefExpression3, FactoryTarget as FactoryTarget4, LiteralExpr as LiteralExpr3, WrappedNodeExpr as WrappedNodeExpr11 } from "@angular/compiler";
+import ts74 from "typescript";
+var InjectableDecoratorHandler = class {
+  reflector;
+  evaluator;
+  isCore;
+  strictCtorDeps;
+  injectableRegistry;
+  perf;
+  includeClassMetadata;
+  compilationMode;
+  errorOnDuplicateProv;
+  constructor(reflector, evaluator, isCore, strictCtorDeps, injectableRegistry, perf, includeClassMetadata, compilationMode, errorOnDuplicateProv = true) {
+    this.reflector = reflector;
+    this.evaluator = evaluator;
+    this.isCore = isCore;
+    this.strictCtorDeps = strictCtorDeps;
+    this.injectableRegistry = injectableRegistry;
+    this.perf = perf;
+    this.includeClassMetadata = includeClassMetadata;
+    this.compilationMode = compilationMode;
+    this.errorOnDuplicateProv = errorOnDuplicateProv;
+  }
+  precedence = HandlerPrecedence.SHARED;
+  name = "InjectableDecoratorHandler";
+  detect(node, decorators) {
+    if (!decorators) {
+      return void 0;
+    }
+    const decorator = findAngularDecorator(decorators, "Injectable", this.isCore);
+    if (decorator !== void 0) {
+      return {
+        trigger: decorator.node,
+        decorator,
+        metadata: decorator
+      };
+    } else {
+      return void 0;
+    }
+  }
+  analyze(node, decorator) {
+    this.perf.eventCount(PerfEvent.AnalyzeInjectable);
+    const meta = extractInjectableMetadata(node, decorator, this.reflector);
+    const decorators = this.reflector.getDecoratorsOfDeclaration(node);
+    return {
+      analysis: {
+        meta,
+        ctorDeps: extractInjectableCtorDeps(node, meta, decorator, this.reflector, this.isCore, this.strictCtorDeps),
+        classMetadata: this.includeClassMetadata ? extractClassMetadata(node, this.reflector, this.isCore) : null,
+        // Avoid generating multiple factories if a class has
+        // more Angular decorators, apart from Injectable.
+        needsFactory: !decorators || decorators.every((current) => !isAngularCore(current) || current.name === "Injectable")
+      }
+    };
+  }
+  symbol() {
+    return null;
+  }
+  register(node, analysis) {
+    if (this.compilationMode === CompilationMode.LOCAL) {
+      return;
+    }
+    this.injectableRegistry.registerInjectable(node, {
+      ctorDeps: analysis.ctorDeps
+    });
+  }
+  resolve(node, analysis) {
+    if (this.compilationMode === CompilationMode.LOCAL) {
+      return {};
+    }
+    if (requiresValidCtor(analysis.meta)) {
+      const diagnostic = checkInheritanceOfInjectable(node, this.injectableRegistry, this.reflector, this.evaluator, this.strictCtorDeps, "Injectable");
+      if (diagnostic !== null) {
+        return {
+          diagnostics: [diagnostic]
+        };
+      }
+    }
+    return {};
+  }
+  compileFull(node, analysis) {
+    return this.compile(compileNgFactoryDefField, (meta) => compileInjectable(meta, false), compileClassMetadata3, node, analysis);
+  }
+  compilePartial(node, analysis) {
+    return this.compile(compileDeclareFactory, compileDeclareInjectableFromMetadata, compileDeclareClassMetadata3, node, analysis);
+  }
+  compileLocal(node, analysis) {
+    return this.compile(compileNgFactoryDefField, (meta) => compileInjectable(meta, false), compileClassMetadata3, node, analysis);
+  }
+  compile(compileFactoryFn, compileInjectableFn, compileClassMetadataFn, node, analysis) {
+    const results = [];
+    if (analysis.needsFactory) {
+      const meta = analysis.meta;
+      const factoryRes = compileFactoryFn(toFactoryMetadata({ ...meta, deps: analysis.ctorDeps }, FactoryTarget4.Injectable));
+      if (analysis.classMetadata !== null) {
+        factoryRes.statements.push(compileClassMetadataFn(analysis.classMetadata).toStmt());
+      }
+      results.push(factoryRes);
+    }
+    const \u0275prov = this.reflector.getMembersOfClass(node).find((member) => member.name === "\u0275prov");
+    if (\u0275prov !== void 0 && this.errorOnDuplicateProv) {
+      throw new FatalDiagnosticError(ErrorCode.INJECTABLE_DUPLICATE_PROV, \u0275prov.nameNode || \u0275prov.node || node, "Injectables cannot contain a static \u0275prov property, because the compiler is going to generate one.");
+    }
+    if (\u0275prov === void 0) {
+      const res = compileInjectableFn(analysis.meta);
+      results.push({
+        name: "\u0275prov",
+        initializer: res.expression,
+        statements: res.statements,
+        type: res.type,
+        deferrableImports: null
+      });
+    }
+    return results;
+  }
+};
+function extractInjectableMetadata(clazz, decorator, reflector) {
+  const name = clazz.name.text;
+  const type = wrapTypeReference(reflector, clazz);
+  const typeArgumentCount = reflector.getGenericArityOfClass(clazz) || 0;
+  if (decorator.args === null) {
+    throw new FatalDiagnosticError(ErrorCode.DECORATOR_NOT_CALLED, decorator.node, "@Injectable must be called");
+  }
+  if (decorator.args.length === 0) {
+    return {
+      name,
+      type,
+      typeArgumentCount,
+      providedIn: createMayBeForwardRefExpression3(
+        new LiteralExpr3(null),
+        0
+        /* ForwardRefHandling.None */
+      )
+    };
+  } else if (decorator.args.length === 1) {
+    const metaNode = decorator.args[0];
+    if (!ts74.isObjectLiteralExpression(metaNode)) {
+      throw new FatalDiagnosticError(ErrorCode.DECORATOR_ARG_NOT_LITERAL, metaNode, `@Injectable argument must be an object literal`);
+    }
+    const meta = reflectObjectLiteral(metaNode);
+    const providedIn = meta.has("providedIn") ? getProviderExpression(meta.get("providedIn"), reflector) : createMayBeForwardRefExpression3(
+      new LiteralExpr3(null),
+      0
+      /* ForwardRefHandling.None */
+    );
+    let deps = void 0;
+    if ((meta.has("useClass") || meta.has("useFactory")) && meta.has("deps")) {
+      const depsExpr = meta.get("deps");
+      if (!ts74.isArrayLiteralExpression(depsExpr)) {
+        throw new FatalDiagnosticError(ErrorCode.VALUE_NOT_LITERAL, depsExpr, `@Injectable deps metadata must be an inline array`);
+      }
+      deps = depsExpr.elements.map((dep) => getDep(dep, reflector));
+    }
+    const result = { name, type, typeArgumentCount, providedIn };
+    if (meta.has("useValue")) {
+      result.useValue = getProviderExpression(meta.get("useValue"), reflector);
+    } else if (meta.has("useExisting")) {
+      result.useExisting = getProviderExpression(meta.get("useExisting"), reflector);
+    } else if (meta.has("useClass")) {
+      result.useClass = getProviderExpression(meta.get("useClass"), reflector);
+      result.deps = deps;
+    } else if (meta.has("useFactory")) {
+      result.useFactory = new WrappedNodeExpr11(meta.get("useFactory"));
+      result.deps = deps;
+    }
+    return result;
+  } else {
+    throw new FatalDiagnosticError(ErrorCode.DECORATOR_ARITY_WRONG, decorator.args[2], "Too many arguments to @Injectable");
+  }
+}
+function getProviderExpression(expression, reflector) {
+  const forwardRefValue = tryUnwrapForwardRef(expression, reflector);
+  return createMayBeForwardRefExpression3(
+    new WrappedNodeExpr11(forwardRefValue ?? expression),
+    forwardRefValue !== null ? 2 : 0
+    /* ForwardRefHandling.None */
+  );
+}
+function extractInjectableCtorDeps(clazz, meta, decorator, reflector, isCore, strictCtorDeps) {
+  if (decorator.args === null) {
+    throw new FatalDiagnosticError(ErrorCode.DECORATOR_NOT_CALLED, decorator.node, "@Injectable must be called");
+  }
+  let ctorDeps = null;
+  if (decorator.args.length === 0) {
+    if (strictCtorDeps && !isAbstractClassDeclaration(clazz)) {
+      ctorDeps = getValidConstructorDependencies(clazz, reflector, isCore);
+    } else {
+      ctorDeps = unwrapConstructorDependencies(getConstructorDependencies(clazz, reflector, isCore));
+    }
+    return ctorDeps;
+  } else if (decorator.args.length === 1) {
+    const rawCtorDeps = getConstructorDependencies(clazz, reflector, isCore);
+    if (strictCtorDeps && !isAbstractClassDeclaration(clazz) && requiresValidCtor(meta)) {
+      ctorDeps = validateConstructorDependencies(clazz, rawCtorDeps);
+    } else {
+      ctorDeps = unwrapConstructorDependencies(rawCtorDeps);
+    }
+  }
+  return ctorDeps;
+}
+function requiresValidCtor(meta) {
+  return meta.useValue === void 0 && meta.useExisting === void 0 && meta.useClass === void 0 && meta.useFactory === void 0;
+}
+function getDep(dep, reflector) {
+  const meta = {
+    token: new WrappedNodeExpr11(dep),
+    attributeNameType: null,
+    host: false,
+    optional: false,
+    self: false,
+    skipSelf: false
+  };
+  function maybeUpdateDecorator(dec, reflector2, token) {
+    const source = reflector2.getImportOfIdentifier(dec);
+    if (source === null || source.from !== "@angular/core") {
+      return false;
+    }
+    switch (source.name) {
+      case "Inject":
+        if (token !== void 0) {
+          meta.token = new WrappedNodeExpr11(token);
+        }
+        break;
+      case "Optional":
+        meta.optional = true;
+        break;
+      case "SkipSelf":
+        meta.skipSelf = true;
+        break;
+      case "Self":
+        meta.self = true;
+        break;
+      default:
+        return false;
+    }
+    return true;
+  }
+  if (ts74.isArrayLiteralExpression(dep)) {
+    dep.elements.forEach((el) => {
+      let isDecorator = false;
+      if (ts74.isIdentifier(el)) {
+        isDecorator = maybeUpdateDecorator(el, reflector);
+      } else if (ts74.isNewExpression(el) && ts74.isIdentifier(el.expression)) {
+        const token = el.arguments && el.arguments.length > 0 && el.arguments[0] || void 0;
+        isDecorator = maybeUpdateDecorator(el.expression, reflector, token);
+      }
+      if (!isDecorator) {
+        meta.token = new WrappedNodeExpr11(el);
+      }
+    });
+  }
+  return meta;
+}
+
+// packages/compiler-cli/src/ngtsc/annotations/src/pipe.js
+import { compileClassMetadata as compileClassMetadata4, compileDeclareClassMetadata as compileDeclareClassMetadata4, compileDeclarePipeFromMetadata, compilePipeFromMetadata, FactoryTarget as FactoryTarget5 } from "@angular/compiler";
+import ts75 from "typescript";
+var PipeSymbol = class _PipeSymbol extends SemanticSymbol {
+  name;
+  constructor(decl, name) {
+    super(decl);
+    this.name = name;
+  }
+  isPublicApiAffected(previousSymbol) {
+    if (!(previousSymbol instanceof _PipeSymbol)) {
+      return true;
+    }
+    return this.name !== previousSymbol.name;
+  }
+  isTypeCheckApiAffected(previousSymbol) {
+    return this.isPublicApiAffected(previousSymbol);
+  }
+};
+var PipeDecoratorHandler = class {
+  reflector;
+  evaluator;
+  metaRegistry;
+  scopeRegistry;
+  injectableRegistry;
+  isCore;
+  perf;
+  includeClassMetadata;
+  compilationMode;
+  generateExtraImportsInLocalMode;
+  strictStandalone;
+  implicitStandaloneValue;
+  constructor(reflector, evaluator, metaRegistry, scopeRegistry, injectableRegistry, isCore, perf, includeClassMetadata, compilationMode, generateExtraImportsInLocalMode, strictStandalone, implicitStandaloneValue) {
+    this.reflector = reflector;
+    this.evaluator = evaluator;
+    this.metaRegistry = metaRegistry;
+    this.scopeRegistry = scopeRegistry;
+    this.injectableRegistry = injectableRegistry;
+    this.isCore = isCore;
+    this.perf = perf;
+    this.includeClassMetadata = includeClassMetadata;
+    this.compilationMode = compilationMode;
+    this.generateExtraImportsInLocalMode = generateExtraImportsInLocalMode;
+    this.strictStandalone = strictStandalone;
+    this.implicitStandaloneValue = implicitStandaloneValue;
+  }
+  precedence = HandlerPrecedence.PRIMARY;
+  name = "PipeDecoratorHandler";
+  detect(node, decorators) {
+    if (!decorators) {
+      return void 0;
+    }
+    const decorator = findAngularDecorator(decorators, "Pipe", this.isCore);
+    if (decorator !== void 0) {
+      return {
+        trigger: decorator.node,
+        decorator,
+        metadata: decorator
+      };
+    } else {
+      return void 0;
+    }
+  }
+  analyze(clazz, decorator) {
+    this.perf.eventCount(PerfEvent.AnalyzePipe);
+    const name = clazz.name.text;
+    const type = wrapTypeReference(this.reflector, clazz);
+    if (decorator.args === null) {
+      throw new FatalDiagnosticError(ErrorCode.DECORATOR_NOT_CALLED, decorator.node, `@Pipe must be called`);
+    }
+    const meta = decorator.args.length === 0 || // TODO(crisbeto): temporary for testing until we've changed
+    // the pipe public API not to require a name.
+    ts75.isNonNullExpression(decorator.args[0]) && decorator.args[0].expression.kind === ts75.SyntaxKind.NullKeyword ? null : unwrapExpression(decorator.args[0]);
+    let pipeName = null;
+    let pipeNameExpr = null;
+    let pure = true;
+    let isStandalone = this.implicitStandaloneValue;
+    if (meta !== null) {
+      if (!ts75.isObjectLiteralExpression(meta)) {
+        throw new FatalDiagnosticError(ErrorCode.DECORATOR_ARG_NOT_LITERAL, meta, "@Pipe must have a literal argument");
+      }
+      const pipe = reflectObjectLiteral(meta);
+      if (!pipe.has("name")) {
+        throw new FatalDiagnosticError(ErrorCode.PIPE_MISSING_NAME, meta, `@Pipe decorator is missing name field`);
+      }
+      pipeNameExpr = pipe.get("name");
+      const evaluatedName = this.evaluator.evaluate(pipeNameExpr);
+      if (typeof evaluatedName !== "string") {
+        throw createValueHasWrongTypeError(pipeNameExpr, evaluatedName, `@Pipe.name must be a string`);
+      }
+      pipeName = evaluatedName;
+      if (pipe.has("pure")) {
+        const expr = pipe.get("pure");
+        const pureValue = this.evaluator.evaluate(expr);
+        if (typeof pureValue !== "boolean") {
+          throw createValueHasWrongTypeError(expr, pureValue, `@Pipe.pure must be a boolean`);
+        }
+        pure = pureValue;
+      }
+      if (pipe.has("standalone")) {
+        const expr = pipe.get("standalone");
+        const resolved = this.evaluator.evaluate(expr);
+        if (typeof resolved !== "boolean") {
+          throw createValueHasWrongTypeError(expr, resolved, `standalone flag must be a boolean`);
+        }
+        isStandalone = resolved;
+        if (!isStandalone && this.strictStandalone) {
+          throw new FatalDiagnosticError(ErrorCode.NON_STANDALONE_NOT_ALLOWED, expr, `Only standalone pipes are allowed when 'strictStandalone' is enabled.`);
+        }
+      }
+    }
+    return {
+      analysis: {
+        meta: {
+          name,
+          type,
+          typeArgumentCount: this.reflector.getGenericArityOfClass(clazz) || 0,
+          pipeName,
+          deps: getValidConstructorDependencies(clazz, this.reflector, this.isCore),
+          pure,
+          isStandalone
+        },
+        classMetadata: this.includeClassMetadata ? extractClassMetadata(clazz, this.reflector, this.isCore) : null,
+        pipeNameExpr,
+        decorator: decorator?.node ?? null
+      }
+    };
+  }
+  symbol(node, analysis) {
+    return new PipeSymbol(node, analysis.meta.pipeName ?? analysis.meta.name);
+  }
+  register(node, analysis) {
+    const ref = new Reference(node);
+    this.metaRegistry.registerPipeMetadata({
+      kind: MetaKind.Pipe,
+      ref,
+      name: analysis.meta.pipeName,
+      nameExpr: analysis.pipeNameExpr,
+      isStandalone: analysis.meta.isStandalone,
+      decorator: analysis.decorator,
+      isExplicitlyDeferred: false,
+      isPure: analysis.meta.pure
+    });
+    this.injectableRegistry.registerInjectable(node, {
+      ctorDeps: analysis.meta.deps
+    });
+  }
+  resolve(node) {
+    if (this.compilationMode === CompilationMode.LOCAL) {
+      return {};
+    }
+    const duplicateDeclData = this.scopeRegistry.getDuplicateDeclarations(node);
+    if (duplicateDeclData !== null) {
+      return {
+        diagnostics: [makeDuplicateDeclarationError(node, duplicateDeclData, "Pipe")]
+      };
+    }
+    return {};
+  }
+  compileFull(node, analysis) {
+    const fac = compileNgFactoryDefField(toFactoryMetadata(analysis.meta, FactoryTarget5.Pipe));
+    const def = compilePipeFromMetadata(analysis.meta);
+    const classMetadata = analysis.classMetadata !== null ? compileClassMetadata4(analysis.classMetadata).toStmt() : null;
+    return compileResults(
+      fac,
+      def,
+      classMetadata,
+      "\u0275pipe",
+      null,
+      null
+      /* deferrableImports */
+    );
+  }
+  compilePartial(node, analysis) {
+    const fac = compileDeclareFactory(toFactoryMetadata(analysis.meta, FactoryTarget5.Pipe));
+    const def = compileDeclarePipeFromMetadata(analysis.meta);
+    const classMetadata = analysis.classMetadata !== null ? compileDeclareClassMetadata4(analysis.classMetadata).toStmt() : null;
+    return compileResults(
+      fac,
+      def,
+      classMetadata,
+      "\u0275pipe",
+      null,
+      null
+      /* deferrableImports */
+    );
+  }
+  compileLocal(node, analysis) {
+    const fac = compileNgFactoryDefField(toFactoryMetadata(analysis.meta, FactoryTarget5.Pipe));
+    const def = compilePipeFromMetadata(analysis.meta);
+    const classMetadata = analysis.classMetadata !== null ? compileClassMetadata4(analysis.classMetadata).toStmt() : null;
+    return compileResults(
+      fac,
+      def,
+      classMetadata,
+      "\u0275pipe",
+      null,
+      null
+      /* deferrableImports */
+    );
+  }
+};
+
+export {
+  ErrorCode,
+  COMPILER_ERRORS_WITH_GUIDES,
+  replaceTsWithNgInErrors,
+  ngErrorCode,
+  makeDiagnostic,
+  isFatalDiagnosticError,
+  isLocalCompilationDiagnostics,
+  ERROR_DETAILS_PAGE_BASE_URL,
+  ExtendedTemplateDiagnosticName,
+  isDtsPath,
+  isNonDeclarationTsPath,
+  getSourceFileOrNull,
+  getRootDirs,
+  toUnredirectedSourceFile,
+  ReferenceEmitter,
+  LocalIdentifierStrategy,
+  AbsoluteModuleStrategy,
+  LogicalProjectStrategy,
+  RelativePathStrategy,
+  UnifiedModulesStrategy,
+  UnifiedModulesAliasingHost,
+  PrivateExportAliasingHost,
+  AliasStrategy,
+  relativePathBetween,
+  normalizeSeparators,
+  NoopImportRewriter,
+  R3SymbolsImportRewriter,
+  loadIsReferencedAliasDeclarationPatch,
+  isAliasImportDeclaration,
+  DefaultImportTracker,
+  isNamedClassDeclaration,
+  TypeScriptReflectionHost,
+  reflectClassMember,
+  reflectObjectLiteral,
+  DeferredSymbolTracker,
+  ImportedSymbolsTracker,
+  LocalCompilationExtraImportsTracker,
+  Reference,
+  ModuleResolver,
+  isAngularDecorator,
+  getAngularDecorators,
+  createForwardRefResolver,
+  MetaKind,
+  CompoundMetadataReader,
+  DtsMetadataReader,
+  LocalMetadataRegistry,
+  CompoundMetadataRegistry,
+  ResourceRegistry,
+  ExportedProviderStatusResolver,
+  HostDirectivesResolver,
+  DynamicValue,
+  StaticInterpreter,
+  PartialEvaluator,
+  CompilationMode,
+  aliasTransformFactory,
+  PerfPhase,
+  PerfEvent,
+  PerfCheckpoint,
+  ActivePerfRecorder,
+  DelegatingPerfRecorder,
+  TraitCompiler,
+  ImportManager,
+  DtsTransformRegistry,
+  declarationTransformFactory,
+  ivyTransformFactory,
+  signalMetadataTransform,
+  InjectableClassRegistry,
+  NoopReferencesRegistry,
+  JitDeclarationRegistry,
+  SemanticDepGraphUpdater,
+  ComponentScopeKind,
+  CompoundComponentScopeReader,
+  MetadataDtsModuleScopeResolver,
+  LocalModuleScopeRegistry,
+  SelectorlessComponentScopeReader,
+  TypeCheckScopeRegistry,
+  tryParseInitializerApi,
+  INPUT_INITIALIZER_FN,
+  tryParseSignalInputMapping,
+  MODEL_INITIALIZER_FN,
+  tryParseSignalModelMapping,
+  OUTPUT_INITIALIZER_FNS,
+  tryParseInitializerBasedOutput,
+  QUERY_INITIALIZER_FNS,
+  tryParseSignalQueryFromInitializer,
+  queryDecoratorNames,
+  NgOriginalFile,
+  isShim,
+  untagAllTsFiles,
+  retagAllTsFiles,
+  ShimAdapter,
+  ShimReferenceTagger,
+  TsCreateProgramDriver,
+  OptimizeFor,
+  PotentialImportKind,
+  PotentialImportMode,
+  SymbolKind,
+  TypeCheckShimGenerator,
+  TemplateTypeCheckerImpl,
+  DirectiveDecoratorHandler,
+  NgModuleDecoratorHandler,
+  ComponentDecoratorHandler,
+  InjectableDecoratorHandler,
+  PipeDecoratorHandler
+};
+/**
+ * @license
+ * Copyright Google LLC All Rights Reserved.
+ *
+ * Use of this source code is governed by an MIT-style license that can be
+ * found in the LICENSE file at https://angular.dev/license
+ */
+/*!
+ * @license
+ * Copyright Google LLC All Rights Reserved.
+ *
+ * Use of this source code is governed by an MIT-style license that can be
+ * found in the LICENSE file at https://angular.dev/license
+ */
