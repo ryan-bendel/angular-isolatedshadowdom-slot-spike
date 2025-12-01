@@ -1,12 +1,12 @@
 /**
- * @license Angular v21.1.0-next.0+sha-24175d2-with-local-changes
+ * @license Angular v21.1.0-next.0+sha-60acf6d-with-local-changes
  * (c) 2010-2025 Google LLC. https://angular.dev/
  * License: MIT
  */
 
 import { DOCUMENT, ɵgetDOM as _getDOM } from '@angular/common';
 import * as i0 from '@angular/core';
-import { Injectable, Inject, InjectionToken, ɵRuntimeError as _RuntimeError, APP_ID, CSP_NONCE, PLATFORM_ID, Optional, ɵgetLContext as _getLContext, ɵunwrapRNode as _unwrapRNode, ɵHOST as _HOST, ɵPARENT as _PARENT, ViewEncapsulation, ɵTracingService as _TracingService, RendererStyleFlags2, ɵallLeavingAnimations as _allLeavingAnimations } from '@angular/core';
+import { Injectable, Inject, InjectionToken, ɵRuntimeError as _RuntimeError, APP_ID, CSP_NONCE, PLATFORM_ID, Optional, eReadPatchedData, ɵunwrapRNode as _unwrapRNode, ɵHOST as _HOST, ɵPARENT as _PARENT, ViewEncapsulation, ɵTracingService as _TracingService, RendererStyleFlags2, ɵallLeavingAnimations as _allLeavingAnimations } from '@angular/core';
 
 class EventManagerPlugin {
   _doc;
@@ -32,7 +32,7 @@ class DomEventsPlugin extends EventManagerPlugin {
   }
   static ɵfac = i0.ɵɵngDeclareFactory({
     minVersion: "12.0.0",
-    version: "21.1.0-next.0+sha-24175d2-with-local-changes",
+    version: "21.1.0-next.0+sha-60acf6d-with-local-changes",
     ngImport: i0,
     type: DomEventsPlugin,
     deps: [{
@@ -42,14 +42,14 @@ class DomEventsPlugin extends EventManagerPlugin {
   });
   static ɵprov = i0.ɵɵngDeclareInjectable({
     minVersion: "12.0.0",
-    version: "21.1.0-next.0+sha-24175d2-with-local-changes",
+    version: "21.1.0-next.0+sha-60acf6d-with-local-changes",
     ngImport: i0,
     type: DomEventsPlugin
   });
 }
 i0.ɵɵngDeclareClassMetadata({
   minVersion: "12.0.0",
-  version: "21.1.0-next.0+sha-24175d2-with-local-changes",
+  version: "21.1.0-next.0+sha-60acf6d-with-local-changes",
   ngImport: i0,
   type: DomEventsPlugin,
   decorators: [{
@@ -103,7 +103,7 @@ class EventManager {
   }
   static ɵfac = i0.ɵɵngDeclareFactory({
     minVersion: "12.0.0",
-    version: "21.1.0-next.0+sha-24175d2-with-local-changes",
+    version: "21.1.0-next.0+sha-60acf6d-with-local-changes",
     ngImport: i0,
     type: EventManager,
     deps: [{
@@ -115,14 +115,14 @@ class EventManager {
   });
   static ɵprov = i0.ɵɵngDeclareInjectable({
     minVersion: "12.0.0",
-    version: "21.1.0-next.0+sha-24175d2-with-local-changes",
+    version: "21.1.0-next.0+sha-60acf6d-with-local-changes",
     ngImport: i0,
     type: EventManager
   });
 }
 i0.ɵɵngDeclareClassMetadata({
   minVersion: "12.0.0",
-  version: "21.1.0-next.0+sha-24175d2-with-local-changes",
+  version: "21.1.0-next.0+sha-60acf6d-with-local-changes",
   ngImport: i0,
   type: EventManager,
   decorators: [{
@@ -364,7 +364,7 @@ class SharedStylesHost {
   }
   static ɵfac = i0.ɵɵngDeclareFactory({
     minVersion: "12.0.0",
-    version: "21.1.0-next.0+sha-24175d2-with-local-changes",
+    version: "21.1.0-next.0+sha-60acf6d-with-local-changes",
     ngImport: i0,
     type: SharedStylesHost,
     deps: [{
@@ -381,14 +381,14 @@ class SharedStylesHost {
   });
   static ɵprov = i0.ɵɵngDeclareInjectable({
     minVersion: "12.0.0",
-    version: "21.1.0-next.0+sha-24175d2-with-local-changes",
+    version: "21.1.0-next.0+sha-60acf6d-with-local-changes",
     ngImport: i0,
     type: SharedStylesHost
   });
 }
 i0.ɵɵngDeclareClassMetadata({
   minVersion: "12.0.0",
-  version: "21.1.0-next.0+sha-24175d2-with-local-changes",
+  version: "21.1.0-next.0+sha-60acf6d-with-local-changes",
   ngImport: i0,
   type: SharedStylesHost,
   decorators: [{
@@ -455,15 +455,15 @@ class IsolatedStyleScopeService {
     return [];
   }
   findShadowRootViaLView(element) {
-    const context = _getLContext(element);
-    if (!context || !context.lView) {
+    const lView = eReadPatchedData(element);
+    if (!lView || !Array.isArray(lView)) {
       return null;
     }
-    let lView = context.lView;
+    let currentLView = lView;
     const visited = new Set();
-    while (lView && !visited.has(lView)) {
-      visited.add(lView);
-      const hostRNode = lView[_HOST];
+    while (currentLView && !visited.has(currentLView)) {
+      visited.add(currentLView);
+      const hostRNode = currentLView[_HOST];
       if (hostRNode) {
         const hostElement = _unwrapRNode(hostRNode);
         if (hostElement instanceof Element) {
@@ -473,9 +473,9 @@ class IsolatedStyleScopeService {
           }
         }
       }
-      const parentLView = lView[_PARENT];
+      const parentLView = currentLView[_PARENT];
       if (parentLView && Array.isArray(parentLView) && parentLView[_HOST] !== undefined) {
-        lView = parentLView;
+        currentLView = parentLView;
       } else {
         break;
       }
@@ -508,7 +508,7 @@ class IsolatedStyleScopeService {
   }
   static ɵfac = i0.ɵɵngDeclareFactory({
     minVersion: "12.0.0",
-    version: "21.1.0-next.0+sha-24175d2-with-local-changes",
+    version: "21.1.0-next.0+sha-60acf6d-with-local-changes",
     ngImport: i0,
     type: IsolatedStyleScopeService,
     deps: [],
@@ -516,7 +516,7 @@ class IsolatedStyleScopeService {
   });
   static ɵprov = i0.ɵɵngDeclareInjectable({
     minVersion: "12.0.0",
-    version: "21.1.0-next.0+sha-24175d2-with-local-changes",
+    version: "21.1.0-next.0+sha-60acf6d-with-local-changes",
     ngImport: i0,
     type: IsolatedStyleScopeService,
     providedIn: 'root'
@@ -524,7 +524,7 @@ class IsolatedStyleScopeService {
 }
 i0.ɵɵngDeclareClassMetadata({
   minVersion: "12.0.0",
-  version: "21.1.0-next.0+sha-24175d2-with-local-changes",
+  version: "21.1.0-next.0+sha-60acf6d-with-local-changes",
   ngImport: i0,
   type: IsolatedStyleScopeService,
   decorators: [{
@@ -660,7 +660,7 @@ class DomRendererFactory2 {
   }
   static ɵfac = i0.ɵɵngDeclareFactory({
     minVersion: "12.0.0",
-    version: "21.1.0-next.0+sha-24175d2-with-local-changes",
+    version: "21.1.0-next.0+sha-60acf6d-with-local-changes",
     ngImport: i0,
     type: DomRendererFactory2,
     deps: [{
@@ -687,14 +687,14 @@ class DomRendererFactory2 {
   });
   static ɵprov = i0.ɵɵngDeclareInjectable({
     minVersion: "12.0.0",
-    version: "21.1.0-next.0+sha-24175d2-with-local-changes",
+    version: "21.1.0-next.0+sha-60acf6d-with-local-changes",
     ngImport: i0,
     type: DomRendererFactory2
   });
 }
 i0.ɵɵngDeclareClassMetadata({
   minVersion: "12.0.0",
-  version: "21.1.0-next.0+sha-24175d2-with-local-changes",
+  version: "21.1.0-next.0+sha-60acf6d-with-local-changes",
   ngImport: i0,
   type: DomRendererFactory2,
   decorators: [{
@@ -911,7 +911,7 @@ class ShadowDomRenderer extends DefaultDomRenderer2 {
         mode: 'open'
       });
     } else {
-      throw new Error('Shadowdom is not supported in SSR mode until declarative shadow DOM is supported.');
+      throw new _RuntimeError(5106, typeof ngDevMode !== 'undefined' && ngDevMode ? 'Shadowdom is not supported in SSR mode until declarative shadow DOM is supported.' : '');
     }
     if (isIsolated) {
       this.styleScopeService.registerIsolatedShadowRoot(this.shadowRoot);

@@ -1,5 +1,5 @@
 /**
- * @license Angular v21.1.0-next.0+sha-24175d2-with-local-changes
+ * @license Angular v21.1.0-next.0+sha-60acf6d-with-local-changes
  * (c) 2010-2025 Google LLC. https://angular.dev/
  * License: MIT
  */
@@ -949,6 +949,7 @@ declare const enum RuntimeErrorCode {
     TESTABILITY_NOT_FOUND = 5103,
     ROOT_NODE_NOT_FOUND = -5104,
     UNEXPECTED_SYNTHETIC_PROPERTY = 5105,
+    SHADOWDOM_NOT_SUPPORTED_IN_SSR = 5106,
     SANITIZATION_UNSAFE_SCRIPT = 5200,
     SANITIZATION_UNSAFE_RESOURCE_URL = 5201,
     SANITIZATION_UNEXPECTED_CTX = 5202,
