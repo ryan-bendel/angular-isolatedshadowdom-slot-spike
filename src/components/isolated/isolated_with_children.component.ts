@@ -3,7 +3,7 @@ import { ButtonComponent } from '../button.component';
 
 @Component({
   selector: 'isolated-with-children',
-  encapsulation: ViewEncapsulation.IsolatedShadowDom,
+  encapsulation: ViewEncapsulation.ExperimentalIsolatedShadowDom,
   templateUrl: './isolated_with_children.component.html',
   styleUrl: './isolated_with_children.component.scss',
   imports: [ButtonComponent],

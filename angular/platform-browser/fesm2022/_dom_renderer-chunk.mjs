@@ -545,8 +545,7 @@ const COMPONENT_VARIABLE = '%COMP%';
 const HOST_ATTR = `_nghost-${COMPONENT_VARIABLE}`;
 const CONTENT_ATTR = `_ngcontent-${COMPONENT_VARIABLE}`;
 const REMOVE_STYLES_ON_COMPONENT_DESTROY_DEFAULT = true;
-const REMOVE_STYLES_ON_COMPONENT_DESTROY = new InjectionToken(ngDevMode ? 'RemoveStylesOnCompDestroy' : '', {
-  providedIn: 'root',
+const REMOVE_STYLES_ON_COMPONENT_DESTROY = new InjectionToken(typeof ngDevMode !== undefined && ngDevMode ? 'RemoveStylesOnCompDestroy' : '', {
   factory: () => REMOVE_STYLES_ON_COMPONENT_DESTROY_DEFAULT
 });
 function shimContentAttribute(componentShortId) {
@@ -584,7 +583,6 @@ class DomRendererFactory2 {
   appId;
   removeStylesOnCompDestroy;
   doc;
-  platformId;
   ngZone;
   nonce;
   tracingService;
@@ -592,13 +590,12 @@ class DomRendererFactory2 {
   rendererByCompId = new Map();
   defaultRenderer;
   platformIsServer;
-  constructor(eventManager, sharedStylesHost, appId, removeStylesOnCompDestroy, doc, platformId, ngZone, nonce = null, tracingService = null, styleScopeService) {
+  constructor(eventManager, sharedStylesHost, appId, removeStylesOnCompDestroy, doc, ngZone, nonce = null, tracingService = null, styleScopeService) {
     this.eventManager = eventManager;
     this.sharedStylesHost = sharedStylesHost;
     this.appId = appId;
     this.removeStylesOnCompDestroy = removeStylesOnCompDestroy;
     this.doc = doc;
-    this.platformId = platformId;
     this.ngZone = ngZone;
     this.nonce = nonce;
     this.tracingService = tracingService;
@@ -610,7 +607,7 @@ class DomRendererFactory2 {
     if (!element || !type) {
       return this.defaultRenderer;
     }
-    if (typeof ngServerMode !== 'undefined' && ngServerMode && (type.encapsulation === ViewEncapsulation.ShadowDom || type.encapsulation === ViewEncapsulation.IsolatedShadowDom)) {
+    if (typeof ngServerMode !== 'undefined' && ngServerMode && (type.encapsulation === ViewEncapsulation.ShadowDom || type.encapsulation === ViewEncapsulation.ExperimentalIsolatedShadowDom)) {
       type = {
         ...type,
         encapsulation: ViewEncapsulation.Emulated
@@ -640,7 +637,7 @@ class DomRendererFactory2 {
           renderer = new EmulatedEncapsulationDomRenderer2(eventManager, sharedStylesHost, type, this.appId, removeStylesOnCompDestroy, doc, ngZone, platformIsServer, tracingService, this.styleScopeService);
           break;
         case ViewEncapsulation.ShadowDom:
-        case ViewEncapsulation.IsolatedShadowDom:
+        case ViewEncapsulation.ExperimentalIsolatedShadowDom:
           return new ShadowDomRenderer(eventManager, element, type, doc, ngZone, this.nonce, platformIsServer, tracingService, sharedStylesHost, this.styleScopeService);
         default:
           renderer = new NoneEncapsulationDomRenderer(eventManager, sharedStylesHost, type, removeStylesOnCompDestroy, doc, ngZone, platformIsServer, tracingService, this.styleScopeService, undefined);
@@ -671,8 +668,6 @@ class DomRendererFactory2 {
       token: REMOVE_STYLES_ON_COMPONENT_DESTROY
     }, {
       token: DOCUMENT
-    }, {
-      token: PLATFORM_ID
     }, {
       token: i0.NgZone
     }, {
@@ -721,12 +716,6 @@ i0.ɵɵngDeclareClassMetadata({
     decorators: [{
       type: Inject,
       args: [DOCUMENT]
-    }]
-  }, {
-    type: Object,
-    decorators: [{
-      type: Inject,
-      args: [PLATFORM_ID]
     }]
   }, {
     type: i0.NgZone
@@ -911,6 +900,7 @@ class ShadowDomRenderer extends DefaultDomRenderer2 {
     this.component = component;
     this.sharedStylesHost = sharedStylesHost;
     this.styleScopeService = styleScopeService;
+    const isIsolated = component.encapsulation === ViewEncapsulation.ExperimentalIsolatedShadowDom;
     if (!platformIsServer) {
       this.shadowRoot = hostEl.attachShadow({
         mode: 'open'
@@ -918,22 +908,19 @@ class ShadowDomRenderer extends DefaultDomRenderer2 {
     } else {
       throw new Error('IsolatedShadowRoot is not supported in SSR mode until declarative shadow DOM is supported.');
     }
-    const isIsolated = component.encapsulation === ViewEncapsulation.IsolatedShadowDom;
-    if (this.styleScopeService) {
-      if (isIsolated) {
-        this.styleScopeService.registerIsolatedShadowRoot(this.shadowRoot);
-        this.sharedStylesHost.addShadowRoot(this.shadowRoot);
-      } else {
-        this.styleScopeService.registerStandardShadowRoot(this.shadowRoot);
-        this.sharedStylesHost.addHost(this.shadowRoot);
-      }
+    if (isIsolated) {
+      this.styleScopeService.registerIsolatedShadowRoot(this.shadowRoot);
+      this.sharedStylesHost.addShadowRoot(this.shadowRoot);
+    } else {
+      this.styleScopeService.registerStandardShadowRoot(this.shadowRoot);
+      this.sharedStylesHost.addHost(this.shadowRoot);
     }
     let styles = component.styles;
     if (ngDevMode) {
       const baseHref = _getDOM().getBaseHref(doc) ?? '';
       styles = addBaseHrefToCssSourceMap(baseHref, styles);
     }
-    if (isIsolated && !platformIsServer) {
+    if (isIsolated) {
       this.sharedStylesHost.addStyles(styles, component.getExternalStyles?.(), this.shadowRoot);
     } else {
       styles = shimStylesContent(component.id, styles);

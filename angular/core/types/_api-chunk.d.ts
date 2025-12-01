@@ -1,10 +1,10 @@
 /**
  * @license Angular v0.0.0
- * (c) 2010-2025 Google LLC. https://angular.io/
+ * (c) 2010-2025 Google LLC. https://angular.dev/
  * License: MIT
  */
 
-import { OutputRef, OutputRefSubscription, DestroyRef, Signal, WritableSignal, ValueEqualityFn, Injector } from './chrome_dev_tools_performance.d.js';
+import { OutputRef, OutputRefSubscription, DestroyRef, Signal, WritableSignal, ValueEqualityFn, Injector } from './_chrome_dev_tools_performance-chunk.js';
 
 /**
  * An `OutputEmitterRef` is created by the `output()` function and can be
@@ -16,6 +16,8 @@ import { OutputRef, OutputRefSubscription, DestroyRef, Signal, WritableSignal, V
  * ```html
  * <my-comp (valueChange)="processNewValue($event)" />
  * ```
+ *
+ * @see [Custom events with outputs](guide/components/outputs)
  *
  * @publicAPI
  */
@@ -33,6 +35,8 @@ declare function getOutputDestroyRef(ref: OutputRef<unknown>): DestroyRef | unde
 
 /**
  * Options for declaring an output.
+ *
+ * @see [Customizing output names](guide/components/outputs#customizing-output-names)
  *
  * @publicApi 19.0
  */
@@ -78,6 +82,9 @@ interface OutputOptions {
  *   this.nameChange.emit(newName);
  * }
  * ```
+ *
+ * @see [Custom events with outputs](guide/components/outputs#customizing-output-names)
+ *
  * @initializerApiFunction {"showTypesInSignaturePreview": true}
  * @publicApi 19.0
  */
@@ -139,7 +146,8 @@ interface Resource<T> {
      *
      * This function is reactive.
      */
-    hasValue(): this is Resource<Exclude<T, undefined>>;
+    hasValue(this: T extends undefined ? this : never): this is Resource<Exclude<T, undefined>>;
+    hasValue(): boolean;
 }
 /**
  * A `Resource` with a mutable value.
@@ -150,7 +158,8 @@ interface Resource<T> {
  */
 interface WritableResource<T> extends Resource<T> {
     readonly value: WritableSignal<T>;
-    hasValue(): this is WritableResource<Exclude<T, undefined>>;
+    hasValue(this: T extends undefined ? this : never): this is WritableResource<Exclude<T, undefined>>;
+    hasValue(): boolean;
     /**
      * Convenience wrapper for `value.set`.
      */
@@ -176,7 +185,8 @@ interface WritableResource<T> extends Resource<T> {
  * @experimental
  */
 interface ResourceRef<T> extends WritableResource<T> {
-    hasValue(): this is ResourceRef<Exclude<T, undefined>>;
+    hasValue(this: T extends undefined ? this : never): this is ResourceRef<Exclude<T, undefined>>;
+    hasValue(): boolean;
     /**
      * Manually destroy the resource, which cancels pending requests and returns it to `idle` state.
      */
@@ -268,7 +278,12 @@ interface StreamingResourceOptions<T, R> extends BaseResourceOptions<T, R> {
 /**
  * @experimental
  */
-type ResourceOptions<T, R> = PromiseResourceOptions<T, R> | StreamingResourceOptions<T, R>;
+type ResourceOptions<T, R> = (PromiseResourceOptions<T, R> | StreamingResourceOptions<T, R>) & {
+    /**
+     * A debug name for the reactive node. Used in Angular DevTools to identify the node.
+     */
+    debugName?: string;
+};
 /**
  * @experimental
  */

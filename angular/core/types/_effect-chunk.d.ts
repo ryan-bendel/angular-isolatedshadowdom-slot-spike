@@ -1,10 +1,10 @@
 /**
  * @license Angular v0.0.0
- * (c) 2010-2025 Google LLC. https://angular.io/
+ * (c) 2010-2025 Google LLC. https://angular.dev/
  * License: MIT
  */
 
-import { ReactiveNode, ValueEqualityFn, SIGNAL, ReactiveHookFn } from './graph.d.js';
+import { ReactiveNode, ValueEqualityFn, SIGNAL, ReactiveHookFn } from './_formatter-chunk.js';
 
 interface SignalNode<T> extends ReactiveNode {
     value: T;
@@ -30,7 +30,6 @@ declare function runPostSignalSetFn<T>(node: SignalNode<T>): void;
 declare const SIGNAL_NODE: SignalNode<unknown>;
 
 interface BaseEffectNode extends ReactiveNode {
-    hasRun: boolean;
     fn: () => void;
     destroy(): void;
     cleanup(): void;

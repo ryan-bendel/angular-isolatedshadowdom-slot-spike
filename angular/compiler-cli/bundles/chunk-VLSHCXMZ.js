@@ -20384,7 +20384,7 @@ var ComponentDecoratorHandler = class {
         if (diagnostics === void 0) {
           diagnostics = [];
         }
-        diagnostics.push(makeDiagnostic(ErrorCode.ISOLATED_SHADOW_DOM_INVALID_CONTENT_PROJECTION, component.get("template") ?? node.name, `ng-content projection is not supported with ViewEncapsulation.IsolatedShadowDom. Use native <slot> elements instead. Content will remain in the light DOM and be projected via slots.`));
+        diagnostics.push(makeDiagnostic(ErrorCode.ISOLATED_SHADOW_DOM_INVALID_CONTENT_PROJECTION, component.get("template") ?? node.name, `ng-content projection is not supported with ViewEncapsulation.ExperimentalIsolatedShadowDom. Use native <slot> elements instead. Content will remain in the light DOM and be projected via slots.`));
       }
     }
     let inlineStyles = null;

@@ -1,15 +1,15 @@
 /**
  * @license Angular v0.0.0
- * (c) 2010-2025 Google LLC. https://angular.io/
+ * (c) 2010-2025 Google LLC. https://angular.dev/
  * License: MIT
  */
 
-import { InjectionToken, Type, ValueProvider, ExistingProvider, FactoryProvider, ConstructorProvider, StaticClassProvider, ClassProvider, EnvironmentProviders, Injector, ProviderToken, InjectOptions, Provider, ProcessProvidersFunction, ModuleWithProviders, DestroyRef, InternalInjectFlags, WritableSignal, OutputRef, StaticProvider } from './chrome_dev_tools_performance.d.js';
+import { InjectionToken, Type, ValueProvider, ExistingProvider, FactoryProvider, ConstructorProvider, StaticClassProvider, ClassProvider, EnvironmentProviders, Injector, ProviderToken, InjectOptions, Provider, ProcessProvidersFunction, ModuleWithProviders, DestroyRef, InternalInjectFlags, WritableSignal, OutputRef, StaticProvider } from './_chrome_dev_tools_performance-chunk.js';
 import { Observable, Subject, Subscription } from 'rxjs';
-import './event_dispatcher.d.js';
-import { SignalNode, BaseEffectNode } from './effect.d.js';
+import './_event_dispatcher-chunk.js';
+import { ReactiveNode } from './_formatter-chunk.js';
+import { SignalNode, BaseEffectNode } from './_effect-chunk.js';
 import { Injector as Injector$1, InjectionToken as InjectionToken$1, NotFound } from '@angular/core/primitives/di';
-import { ReactiveNode } from './graph.d.js';
 
 /**
  * Reactive node type for an input signal. An input signal extends a signal.
@@ -44,6 +44,8 @@ declare const ANIMATIONS_DISABLED: InjectionToken<boolean>;
  * The event type for when `animate.enter` and `animate.leave` are used with function
  * callbacks.
  *
+ * @see [Animating your applications with animate.enter and animate.leave](guide/animations)
+ *
  * @publicApi 20.2
  */
 type AnimationCallbackEvent = {
@@ -58,6 +60,7 @@ type AnimationCallbackEvent = {
  * for when stylesheets are pruned.
  *
  * @publicApi 20.2
+ * @see [Animating your applications with animate.enter and animate.leave](guide/animations)
  */
 declare const MAX_ANIMATION_TIMEOUT: InjectionToken<number>;
 /**
@@ -67,12 +70,29 @@ declare const MAX_ANIMATION_TIMEOUT: InjectionToken<number>;
  * @publicApi 20.2
  */
 type AnimationFunction = (event: AnimationCallbackEvent) => void;
-interface AnimationLViewData {
-    enter?: Function[];
-    leave?: (() => Promise<void>)[];
-    running?: Promise<PromiseSettledResult<void>[]>;
-    skipLeaveAnimations?: boolean;
+type RunEnterAnimationFn = VoidFunction;
+type RunLeaveAnimationFn = () => {
+    promise: Promise<void>;
+    resolve: VoidFunction;
+};
+interface EnterNodeAnimations {
+    animateFns: RunEnterAnimationFn[];
+    resolvers?: VoidFunction[];
 }
+interface LeaveNodeAnimations {
+    animateFns: RunLeaveAnimationFn[];
+    resolvers?: VoidFunction[];
+}
+interface AnimationLViewData {
+    enter?: Map<number, EnterNodeAnimations>;
+    leave?: Map<number, LeaveNodeAnimations>;
+    running?: Promise<unknown>;
+    detachedLeaveAnimationFns?: VoidFunction[];
+}
+/**
+ * Function that returns the class or class list binded to the animate instruction
+ */
+type AnimationClassBindingFn = () => string | string[];
 
 declare const enum NotificationSource {
     MarkAncestorsForTraversal = 0,
@@ -1143,7 +1163,44 @@ declare const enum TNodeFlags {
     /**
      * Bit #10 - This bit is set if the node is within a set of control flow blocks.
      */
-    isInControlFlow = 512
+    isInControlFlow = 512,
+    /**
+     * Bit #11 - This bit is set if the node hosts a custom control component.
+     *
+     * A custom control component's model property is named `value`.
+     */
+    isFormValueControl = 1024,
+    /**
+     * Bit #12 - This bit is set if the node hosts a custom checkbox component.
+     *
+     * A custom checkbox component's model property is named `checked`.
+     */
+    isFormCheckboxControl = 2048,
+    /**
+     * Bit #13 - This bit is set if the node hosts an interoperable control implementation.
+     *
+     * This is used to bind to a `ControlValueAccessor` from `@angular/forms`.
+     */
+    isInteropControl = 4096,
+    /**
+     * Bit #14 - This bit is set if the node is a native control.
+     *
+     * This is used to determine whether we can bind common control properties to the host element of
+     * a custom control when it doesn't define a corresponding input.
+     */
+    isNativeControl = 8192,
+    /**
+     * Bit #15 - This bit is set if the node is a native control with a numeric type.
+     *
+     * This is used to determine whether the control supports the `min` and `max` properties.
+     */
+    isNativeNumericControl = 16384,
+    /**
+     * Bit #16 - This bit is set if the node is a native text control.
+     *
+     * This is used to determine whether control supports the `minLength` and `maxLength` properties.
+     */
+    isNativeTextControl = 32768
 }
 /**
  * Corresponds to the TNode.providerIndexes property.
@@ -1290,6 +1347,16 @@ interface TNode {
      * `directiveStart + componentOffset`.
      */
     componentOffset: number;
+    /**
+     * Index at which the signal forms field directive is stored.
+     * Value is set to -1 if there are no field directives.
+     */
+    fieldIndex: number;
+    /**
+     * Index at which the custom control directive is stored.
+     * Value is set to -1 if there is no custom control directive.
+     */
+    customControlIndex: number;
     /**
      * Stores the last directive which had a styling instruction.
      *
@@ -2051,6 +2118,8 @@ declare const INJECTOR_SCOPE: InjectionToken<InjectorScope | null>;
  * An `Injector` that's part of the environment injector hierarchy, which exists outside of the
  * component tree.
  *
+ * @see [Types of injector hierarchies](guide/di/hierarchical-dependency-injection#types-of-injector-hierarchies)
+ *
  * @publicApi
  */
 declare abstract class EnvironmentInjector implements Injector {
@@ -2212,8 +2281,10 @@ declare enum ViewEncapsulation {
      * Similar to `ShadowDom`, but prevents any external styles from leaking into the
      * component's ShadowRoot. This is useful when you want to ensure that the component's
      * styles are completely isolated from the rest of the application, including global styles.
+     *
+     * @experimental 21.0
      */
-    IsolatedShadowDom = 4
+    ExperimentalIsolatedShadowDom = 4
 }
 
 /**
@@ -2845,12 +2916,18 @@ declare const enum DeferBlockTrigger {
     When = 6,
     Never = 7
 }
-/** * Describes specified delay (in ms) in the `hydrate on timer()` trigger. */
+/** Describes specified delay (in ms) in the `hydrate on timer()` trigger. */
 interface HydrateTimerTriggerDetails {
-    delay: number;
+    type: DeferBlockTrigger.Timer;
+    delay?: number;
+}
+/** Describes the config for a `hydrate on viewport` trigger. */
+interface HydrateViewportTriggerDetails {
+    type: DeferBlockTrigger.Viewport;
+    intersectionObserverOptions?: IntersectionObserverInit;
 }
 /** * Describes all possible hydration trigger details specified in a template. */
-type HydrateTriggerDetails = HydrateTimerTriggerDetails;
+type HydrateTriggerDetails = HydrateTimerTriggerDetails | HydrateViewportTriggerDetails;
 /**
  * Internal structure used for configuration of defer block behavior.
  * */
@@ -2913,6 +2990,8 @@ declare enum SecurityContext {
 /**
  * Sanitizer is used by the views to sanitize potentially dangerous values.
  *
+ * @see [Sanitization and security contexts](best-practices/security#sanitization-and-security-contexts)
+ *
  * @publicApi
  */
 declare abstract class Sanitizer {
@@ -2955,6 +3034,12 @@ interface TracingService<T extends TracingSnapshot> {
      * snapshot.
      */
     snapshot(linkedSnapshot: T | null): T;
+    /**
+     * Propagate the current tracing context to the provided function.
+     * @param fn A function.
+     * @return A function that will propagate the current tracing context.
+     */
+    propagate?<T extends Function>(fn: T): T;
     /**
      * Wrap an event listener bound by the framework for tracing.
      * @param element Element on which the event is bound.
@@ -3118,11 +3203,15 @@ interface CreateEffectOptions {
  * before the next effect run. The cleanup function makes it possible to "cancel" any work that the
  * previous effect run might have started.
  *
+ * @see [Effect cleanup functions](guide/signals#effect-cleanup-functions)
+ *
  * @publicApi 20.0
  */
 type EffectCleanupFn = () => void;
 /**
  * A callback passed to the effect function that makes it possible to register cleanup logic.
+ *
+ * @see [Effect cleanup functions](guide/signals#effect-cleanup-functions)
  *
  * @publicApi 20.0
  */
@@ -3143,6 +3232,8 @@ type EffectCleanupRegisterFn = (cleanupFn: EffectCleanupFn) => void;
  *
  * `effect()` must be run in injection context, unless the `injector` option is manually specified.
  *
+ * @see [Effects](guide/signals#effects)
+ *
  * @publicApi 20.0
  */
 declare function effect(effectFn: (onCleanup: EffectCleanupRegisterFn) => void, options?: CreateEffectOptions): EffectRef;
@@ -3150,7 +3241,7 @@ interface EffectNode extends BaseEffectNode, SchedulableEffect {
     cleanupFns: EffectCleanupFn[] | undefined;
     injector: Injector;
     notifier: ChangeDetectionScheduler;
-    onDestroyFn: () => void;
+    onDestroyFns: (() => void)[] | null;
 }
 interface ViewEffectNode extends EffectNode {
     view: LView;
@@ -3640,9 +3731,10 @@ declare abstract class Renderer2 {
      * @param parent The parent node.
      * @param oldChild The child node to remove.
      * @param isHostElement Optionally signal to the renderer whether this element is a host element
-     * or not
+     * @param requireSynchronousElementRemoval Optionally signal to the renderer whether this element
+     * needs synchronous removal
      */
-    abstract removeChild(parent: any, oldChild: any, isHostElement?: boolean): void;
+    abstract removeChild(parent: any, oldChild: any, isHostElement?: boolean, requireSynchronousElementRemoval?: boolean): void;
     /**
      * Implement this callback to prepare an element to be bootstrapped
      * as a root element, and return the element instance.
@@ -3787,7 +3879,7 @@ interface Renderer {
     destroyNode?: ((node: RNode) => void) | null;
     appendChild(parent: RElement, newChild: RNode): void;
     insertBefore(parent: RNode, newChild: RNode, refChild: RNode | null, isMove?: boolean): void;
-    removeChild(parent: RElement | null, oldChild: RNode, isHostElement?: boolean): void;
+    removeChild(parent: RElement | null, oldChild: RNode, isHostElement?: boolean, requireSynchronousElementRemoval?: boolean): void;
     selectRootElement(selectorOrNode: string | any, preserveContent?: boolean): RElement;
     parentNode(node: RNode): RElement | null;
     nextSibling(node: RNode): RNode | null;
@@ -4702,6 +4794,12 @@ interface DirectiveDecorator {
 /**
  * Directive decorator and metadata.
  *
+ * @see [Built-in directives](guide/directives)
+ * @see [Including inputs and outputs](guide/directives/directive-composition-api#including-inputs-and-outputs)
+ * @see [Assigning a reference to an Angular directive](guide/templates/variables#assigning-a-reference-to-an-angular-directive)
+ * @see [Referencing component children with queries](guide/components/queries)
+ * @see [Binding to the host element](guide/components/host-elements#binding-to-the-host-element)
+ * @see [Host directive semantics](guide/directives/directive-composition-api#host-directive-semantics)
  * @Annotation
  * @publicApi
  */
@@ -5103,6 +5201,11 @@ interface ComponentDecorator {
 /**
  * Supplies configuration metadata for an Angular component.
  *
+ * @see [Anatomy of a component](guide/components)
+ * @see [ChangeDetectionStrategy](guide/components/advanced-configuration#changedetectionstrategy)
+ * @see [Using the viewProviders array](guide/di/hierarchical-dependency-injection#using-the-viewproviders-array)
+ * @see [Style scoping](guide/components/styling#style-scoping)
+ *
  * @publicApi
  */
 interface Component extends Directive {
@@ -5122,15 +5225,6 @@ interface Component extends Directive {
      *
      */
     viewProviders?: Provider[];
-    /**
-     * The module ID of the module that contains the component.
-     * The component must be able to resolve relative URLs for templates and styles.
-     * SystemJS exposes the `__moduleName` variable within each module.
-     * In CommonJS, this can  be set to `module.id`.
-     *
-     * @deprecated This option does not have any effect. Will be removed in Angular v17.
-     */
-    moduleId?: string;
     /**
      * The relative path or absolute URL of a template file for an Angular component.
      * If provided, do not supply an inline template using `template`.
@@ -5181,12 +5275,6 @@ interface Component extends Directive {
      * the policy is automatically switched to `ViewEncapsulation.None`.
      */
     encapsulation?: ViewEncapsulation;
-    /**
-     * Overrides the default interpolation start and end delimiters (`{{` and `}}`).
-     *
-     * @deprecated use Angular's default interpolation delimiters instead.
-     */
-    interpolation?: [string, string];
     /**
      * True to preserve or false to remove potentially superfluous whitespace characters
      * from the compiled template. Whitespace characters are those matching the `\s`
@@ -5258,7 +5346,7 @@ interface PipeDecorator {
      * to a template. To make it a member of an NgModule,
      * list it in the `declarations` field of the `NgModule` metadata.
      *
-     * @see [Style Guide: Pipe Names](style-guide#02-09)
+     * @see [Pipes](/guide/templates/pipes)
      *
      */
     (obj: Pipe): TypeDecorator;
@@ -5441,6 +5529,9 @@ interface HostBindingDecorator {
      * change detection, and if a binding changes it updates the host element of the directive.
      *
      * @usageNotes
+     *
+     * NOTE:  **Always** prefer using the `host` property over `@HostBinding`.
+     * This decorator exist exclusively for backwards compatibility.
      *
      * The following example creates a directive that sets the `valid` and `invalid`
      * class, a style color, and an id on the DOM element that has an `ngModel` directive on it.
@@ -5695,14 +5786,6 @@ declare abstract class ChangeDetectorRef {
 /** Returns a ChangeDetectorRef (a.k.a. a ViewRef) */
 declare function injectChangeDetectorRef(flags: InternalInjectFlags): ChangeDetectorRef;
 
-/*!
- * @license
- * Copyright Google LLC All Rights Reserved.
- *
- * Use of this source code is governed by an MIT-style license that can be
- * found in the LICENSE file at https://angular.dev/license
- */
-
 /** Symbol used to store and retrieve metadata about a binding. */
 declare const BINDING: unique symbol;
 /**
@@ -5738,6 +5821,7 @@ interface DirectiveWithBindings<T> {
  *   bindings: [inputBinding('disabled', isDisabled)]
  * });
  * ```
+ * @see [Binding inputs, outputs and setting host directives at creation](guide/components/programmatic-rendering#binding-inputs-outputs-and-setting-host-directives-at-creation)
  */
 declare function inputBinding(publicName: string, value: () => unknown): Binding;
 /**
@@ -5760,6 +5844,7 @@ declare function inputBinding(publicName: string, value: () => unknown): Binding
  *   ],
  * });
  * ```
+ * @see [Binding inputs, outputs and setting host directives at creation](guide/components/programmatic-rendering#binding-inputs-outputs-and-setting-host-directives-at-creation)
  */
 declare function outputBinding<T>(eventName: string, listener: (event: T) => unknown): Binding;
 /**
@@ -5781,6 +5866,7 @@ declare function outputBinding<T>(eventName: string, listener: (event: T) => unk
  *   ],
  * });
  * ```
+ * @see [Binding inputs, outputs and setting host directives at creation](guide/components/programmatic-rendering#binding-inputs-outputs-and-setting-host-directives-at-creation)
  */
 declare function twoWayBinding(publicName: string, value: WritableSignal<unknown>): Binding;
 
@@ -5793,6 +5879,8 @@ declare function twoWayBinding(publicName: string, value: WritableSignal<unknown
  * @security Permitting direct access to the DOM can make your application more vulnerable to
  * XSS attacks. Carefully review any use of `ElementRef` in your code. For more detail, see the
  * [Security Guide](https://g.co/ng/security).
+ *
+ * @see [Using DOM APIs](guide/components/dom-apis)
  *
  * @publicApi
  */
@@ -5984,6 +6072,8 @@ declare abstract class EmbeddedViewRef<C> extends ViewRef {
  * Provides access to the component instance and related objects,
  * and provides the means of destroying the instance.
  *
+ * @see [Programmatically rendering components](guide/components/programmatic-rendering)
+ *
  * @publicApi
  */
 declare abstract class ComponentRef<C> {
@@ -6126,6 +6216,8 @@ declare abstract class ComponentFactory<C> {
  * <zippy (open)="onOpen($event)" (close)="onClose($event)"></zippy>
  * ```
  *
+ * @see [Declaring outputs with the @Output decorator](guide/components/outputs#declaring-outputs-with-the-output-decorator)
+ *
  * @publicApi
  */
 interface EventEmitter<T> extends Subject<T>, OutputRef<T> {
@@ -6241,6 +6333,8 @@ declare const EventEmitter: {
  *   }
  * }
  * ```
+ *
+ * @see [Resolving zone pollution](best-practices/zone-pollution#run-tasks-outside-ngzone)
  *
  * @publicApi
  */
@@ -6796,7 +6890,7 @@ interface NgModule {
      * The set of injectable objects that are available in the injector
      * of this module.
      *
-     * @see [Dependency Injection guide](guide/di/dependency-injection
+     * @see [Dependency Injection guide](guide/di/dependency-injection)
      * @see [NgModule guide](guide/ngmodules/providers)
      *
      * @usageNotes
@@ -7067,7 +7161,9 @@ declare class PlatformRef {
      * @deprecated Passing NgModule factories as the `PlatformRef.bootstrapModuleFactory` function
      *     argument is deprecated. Use the `PlatformRef.bootstrapModule` API instead.
      */
-    bootstrapModuleFactory<M>(moduleFactory: NgModuleFactory<M>, options?: BootstrapOptions): Promise<NgModuleRef<M>>;
+    bootstrapModuleFactory<M>(moduleFactory: NgModuleFactory<M>, options?: BootstrapOptions & {
+        applicationProviders?: Array<Provider | EnvironmentProviders>;
+    }): Promise<NgModuleRef<M>>;
     /**
      * Creates an instance of an `@NgModule` for a given platform.
      *
@@ -7084,7 +7180,11 @@ declare class PlatformRef {
      * ```
      *
      */
-    bootstrapModule<M>(moduleType: Type<M>, compilerOptions?: (CompilerOptions & BootstrapOptions) | Array<CompilerOptions & BootstrapOptions>): Promise<NgModuleRef<M>>;
+    bootstrapModule<M>(moduleType: Type<M>, compilerOptions?: (CompilerOptions & BootstrapOptions & {
+        applicationProviders?: Array<Provider | EnvironmentProviders>;
+    }) | Array<CompilerOptions & BootstrapOptions & {
+        applicationProviders?: Array<Provider | EnvironmentProviders>;
+    }>): Promise<NgModuleRef<M>>;
     /**
      * Registers a listener to be called when the platform is destroyed.
      */
@@ -7401,5 +7501,5 @@ interface DeferBlockDetails extends DehydratedDeferBlock {
  */
 declare function getDeferBlocks(lView: LView, deferBlocks: DeferBlockDetails[]): void;
 
-export { ANIMATIONS_DISABLED, APP_BOOTSTRAP_LISTENER, AfterRenderManager, AnimationRendererType, ApplicationRef, AttributeMarker, COMPILER_OPTIONS, CONTAINER_HEADER_OFFSET, CUSTOM_ELEMENTS_SCHEMA, ChangeDetectionScheduler, ChangeDetectionStrategy, ChangeDetectorRef, Compiler, CompilerFactory, Component, ComponentFactory, ComponentFactoryResolver, ComponentRef, DebugElement, DebugEventListener, DebugNode, DeferBlockBehavior, DeferBlockState, Directive, EffectScheduler, ElementRef, EmbeddedViewRef, EnvironmentInjector, EventEmitter, HostBinding, HostListener, INJECTOR_SCOPE, Input, InputFlags, MAX_ANIMATION_TIMEOUT, ModuleWithComponentFactories, NG_INJ_DEF, NG_PROV_DEF, NO_ERRORS_SCHEMA, NavigateEvent, Navigation, NavigationCurrentEntryChangeEvent, NavigationDestination, NavigationHistoryEntry, NavigationTransition, NgModule, NgModuleFactory, NgModuleRef, NgZone, NoopNgZone, NotificationSource, Output, PROVIDED_ZONELESS, Pipe, PlatformRef, QueryFlags, QueryList, R3Injector, RenderFlags, Renderer2, RendererFactory2, RendererStyleFlags2, Sanitizer, SecurityContext, TDeferDetailsFlags, TracingAction, TracingService, ViewEncapsulation, ViewRef, ZONELESS_ENABLED, asNativeElements, effect, getDebugNode, getDeferBlocks, getInjectableDef, injectChangeDetectorRef, inputBinding, isBoundToModule, isInjectable, outputBinding, twoWayBinding, ɵɵdefineInjectable, ɵɵdefineInjector };
-export type { AfterRenderRef, AnimationCallbackEvent, AnimationFunction, Binding, BootstrapOptions, ClassDebugInfo, CompilerOptions, ComponentDecorator, ComponentDef, ComponentDefFeature, ComponentTemplate, ComponentType, ContentQueriesFunction, CreateEffectOptions, CssSelectorList, DeferBlockConfig, DeferBlockDependencyInterceptor, DeferBlockDetails, DehydratedDeferBlock, DependencyResolverFn, DependencyTypeList, DirectiveDecorator, DirectiveDef, DirectiveDefFeature, DirectiveType, DirectiveWithBindings, EffectCleanupFn, EffectCleanupRegisterFn, EffectRef, GlobalTargetResolver, HostBindingDecorator, HostBindingsFunction, HostDirectiveConfig, HostListenerDecorator, InjectableType, InjectorType, InputDecorator, InputSignalNode, InputTransformFunction, InternalNgModuleRef, LContainer, LView, ListenerOptions, LocalRefExtractor, NavigationInterceptOptions, NavigationNavigateOptions, NavigationOptions, NavigationReloadOptions, NavigationResult, NavigationTypeString, NavigationUpdateCurrentEntryOptions, NgModuleDecorator, NgModuleScopeInfoFromDecorator, OpaqueViewState, OutputDecorator, PipeDecorator, PipeDef, PipeType, Predicate, ProjectionSlots, RElement, RNode, RawScopeInfoFromDecorator, RendererType2, SanitizerFn, SchemaMetadata, TAttributes, TConstantsOrFactory, TDeferBlockDetails, TNode, TView, TracingSnapshot, TrustedHTML, TrustedScript, TrustedScriptURL, TypeDecorator, TypeOrFactory, ViewQueriesFunction, ɵɵComponentDeclaration, ɵɵDirectiveDeclaration, ɵɵFactoryDeclaration, ɵɵInjectableDeclaration, ɵɵInjectorDeclaration, ɵɵInjectorDef, ɵɵNgModuleDeclaration, ɵɵPipeDeclaration };
+export { ANIMATIONS_DISABLED, APP_BOOTSTRAP_LISTENER, AfterRenderManager, AnimationRendererType, ApplicationRef, AttributeMarker, COMPILER_OPTIONS, CONTAINER_HEADER_OFFSET, CUSTOM_ELEMENTS_SCHEMA, ChangeDetectionScheduler, ChangeDetectionStrategy, ChangeDetectorRef, Compiler, CompilerFactory, Component, ComponentFactory, ComponentFactoryResolver, ComponentRef, DebugElement, DebugEventListener, DebugNode, DeferBlockBehavior, DeferBlockState, Directive, EffectScheduler, ElementRef, EmbeddedViewRef, EnvironmentInjector, EventEmitter, HOST, HostBinding, HostListener, INJECTOR_SCOPE, Input, InputFlags, MAX_ANIMATION_TIMEOUT, ModuleWithComponentFactories, NG_INJ_DEF, NG_PROV_DEF, NO_ERRORS_SCHEMA, NavigateEvent, Navigation, NavigationCurrentEntryChangeEvent, NavigationDestination, NavigationHistoryEntry, NavigationTransition, NgModule, NgModuleFactory, NgModuleRef, NgZone, NoopNgZone, NotificationSource, Output, PARENT, PROVIDED_ZONELESS, Pipe, PlatformRef, QueryFlags, QueryList, R3Injector, RenderFlags, Renderer2, RendererFactory2, RendererStyleFlags2, Sanitizer, SecurityContext, TDeferDetailsFlags, TracingAction, TracingService, ViewEncapsulation, ViewRef, ZONELESS_ENABLED, asNativeElements, effect, getDebugNode, getDeferBlocks, getInjectableDef, injectChangeDetectorRef, inputBinding, isBoundToModule, isInjectable, outputBinding, twoWayBinding, ɵɵdefineInjectable, ɵɵdefineInjector };
+export type { AfterRenderRef, AnimationCallbackEvent, AnimationClassBindingFn, AnimationFunction, Binding, BootstrapOptions, ClassDebugInfo, CompilerOptions, ComponentDecorator, ComponentDef, ComponentDefFeature, ComponentTemplate, ComponentType, ContentQueriesFunction, CreateEffectOptions, CssSelectorList, DeferBlockConfig, DeferBlockDependencyInterceptor, DeferBlockDetails, DehydratedDeferBlock, DependencyResolverFn, DependencyTypeList, DirectiveDecorator, DirectiveDef, DirectiveDefFeature, DirectiveType, DirectiveWithBindings, EffectCleanupFn, EffectCleanupRegisterFn, EffectRef, GlobalTargetResolver, HostBindingDecorator, HostBindingsFunction, HostDirectiveConfig, HostListenerDecorator, InjectableType, InjectorType, InputDecorator, InputSignalNode, InputTransformFunction, InternalNgModuleRef, LContainer, LView, ListenerOptions, LocalRefExtractor, NavigationInterceptOptions, NavigationNavigateOptions, NavigationOptions, NavigationReloadOptions, NavigationResult, NavigationTypeString, NavigationUpdateCurrentEntryOptions, NgModuleDecorator, NgModuleScopeInfoFromDecorator, OpaqueViewState, OutputDecorator, PipeDecorator, PipeDef, PipeType, Predicate, ProjectionSlots, RElement, RNode, RawScopeInfoFromDecorator, RendererType2, SanitizerFn, SchemaMetadata, TAttributes, TConstantsOrFactory, TDeferBlockDetails, TNode, TView, TracingSnapshot, TrustedHTML, TrustedScript, TrustedScriptURL, TypeDecorator, TypeOrFactory, ViewQueriesFunction, ɵɵComponentDeclaration, ɵɵDirectiveDeclaration, ɵɵFactoryDeclaration, ɵɵInjectableDeclaration, ɵɵInjectorDeclaration, ɵɵInjectorDef, ɵɵNgModuleDeclaration, ɵɵPipeDeclaration };

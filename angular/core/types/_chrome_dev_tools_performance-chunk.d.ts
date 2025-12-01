@@ -1,35 +1,11 @@
 /**
  * @license Angular v0.0.0
- * (c) 2010-2025 Google LLC. https://angular.io/
+ * (c) 2010-2025 Google LLC. https://angular.dev/
  * License: MIT
  */
 
-import { SIGNAL } from './graph.d.js';
-import { EventContract } from './event_dispatcher.d.js';
-
-/**
- * A reactive value which notifies consumers of any changes.
- *
- * Signals are functions which returns their current value. To access the current value of a signal,
- * call it.
- *
- * Ordinary values can be turned into `Signal`s with the `signal` function.
- *
- * @publicApi 17.0
- */
-type Signal<T> = (() => T) & {
-    [SIGNAL]: unknown;
-};
-/**
- * Checks if the given `value` is a reactive `Signal`.
- *
- * @publicApi 17.0
- */
-declare function isSignal(value: unknown): value is Signal<unknown>;
-/**
- * A comparison function which can determine if two values are equal.
- */
-type ValueEqualityFn<T> = (a: T, b: T) => boolean;
+import { SIGNAL } from './_formatter-chunk.js';
+import { EventContract } from './_event_dispatcher-chunk.js';
 
 /** Symbol used distinguish `WritableSignal` from other non-writable signals and functions. */
 declare const ɵWRITABLE_SIGNAL: unique symbol;
@@ -78,8 +54,49 @@ interface CreateSignalOptions<T> {
 }
 /**
  * Create a `Signal` that can be set or updated directly.
+ * @see [Angular Signals](guide/signals)
  */
 declare function signal<T>(initialValue: T, options?: CreateSignalOptions<T>): WritableSignal<T>;
+
+/**
+ * A reactive value which notifies consumers of any changes.
+ *
+ * Signals are functions which returns their current value. To access the current value of a signal,
+ * call it.
+ *
+ * Ordinary values can be turned into `Signal`s with the `signal` function.
+ *
+ * @see [What are signals?](guide/signals#what-are-signals)
+ *
+ * @publicApi 17.0
+ */
+type Signal<T> = (() => T) & {
+    [SIGNAL]: unknown;
+};
+/**
+ * Checks if the given `value` is a reactive `Signal`.
+ *
+ * @see [Type checking signals](guide/signals#type-checking-signals)
+ *
+ * @publicApi 17.0
+ */
+declare function isSignal(value: unknown): value is Signal<unknown>;
+/**
+ * A comparison function which can determine if two values are equal.
+ *
+ * @see [Signal equality functions](guide/signals#signal-equality-functions)
+ *
+ * @publicApi 17.0
+ */
+type ValueEqualityFn<T> = (a: T, b: T) => boolean;
+/**
+ * Checks if the given `value` is a writeable signal.
+ *
+ * @see [Type checking signals](guide/signals#type-checking-signals)
+ *
+ * @publicApi 21.1
+ */
+declare function isWritableSignal(value: unknown): value is WritableSignal<unknown>;
 
 /**
  * Function that can be used to manually clean up a
@@ -87,6 +104,8 @@ declare function signal<T>(initialValue: T, options?: CreateSignalOptions<T>): W
  *
  * Note: Angular will automatically clean up subscriptions
  * when the directive/component of the output is destroyed.
+ *
+ * @see [Subscribing to outputs programmatically](guide/components/outputs#subscribing-to-outputs-programmatically)
  *
  * @publicAPI
  */
@@ -97,6 +116,7 @@ interface OutputRefSubscription {
  * A reference to an Angular output.
  *
  * @publicAPI
+ * @see [Subscribing to outputs programmatically](guide/components/outputs#subscribing-to-outputs-programmatically)
  */
 interface OutputRef<T> {
     /**
@@ -209,6 +229,9 @@ type Writable<T> = {
  *
  * {@example core/di/ts/injector_spec.ts region='ShakableInjectionToken'}
  *
+ *
+ * @see [What is an InjectionToken?](guide/di/defining-dependency-providers#what-is-an-injectiontoken)
+ *
  * @publicApi
  */
 declare class InjectionToken<T> {
@@ -241,7 +264,7 @@ interface ValueSansProvider {
 }
 /**
  * Configures the `Injector` to return a value for a token.
- * @see [Dependency Injection Guide](guide/di/dependency-injection.
+ * @see [Dependency Injection Guide](guide/di/dependency-injection)
  *
  * @usageNotes
  *
@@ -286,7 +309,7 @@ interface StaticClassSansProvider {
 }
 /**
  * Configures the `Injector` to return an instance of `useClass` for a token.
- * @see [Dependency Injection Guide](guide/di/dependency-injection.
+ * @see [Dependency Injection Guide](guide/di/dependency-injection)
  *
  * @usageNotes
  *
@@ -316,7 +339,7 @@ interface StaticClassProvider extends StaticClassSansProvider {
 /**
  * Configures the `Injector` to return an instance of a token.
  *
- * @see [Dependency Injection Guide](guide/di/dependency-injection.
+ * @see [Dependency Injection Guide](guide/di/dependency-injection)
  *
  * @usageNotes
  *
@@ -336,7 +359,7 @@ interface ConstructorSansProvider {
 /**
  * Configures the `Injector` to return an instance of a token.
  *
- * @see [Dependency Injection Guide](guide/di/dependency-injection.
+ * @see [Dependency Injection Guide](guide/di/dependency-injection)
  *
  * @usageNotes
  *
@@ -363,7 +386,7 @@ interface ConstructorProvider extends ConstructorSansProvider {
  * Configures the `Injector` to return a value of another `useExisting` token.
  *
  * @see {@link ExistingProvider}
- * @see [Dependency Injection Guide](guide/di/dependency-injection.
+ * @see [Dependency Injection Guide](guide/di/dependency-injection)
  *
  * @publicApi
  */
@@ -376,7 +399,7 @@ interface ExistingSansProvider {
 /**
  * Configures the `Injector` to return a value of another `useExisting` token.
  *
- * @see [Dependency Injection Guide](guide/di/dependency-injection.
+ * @see [Dependency Injection Guide](guide/di/dependency-injection)
  *
  * @usageNotes
  *
@@ -403,7 +426,7 @@ interface ExistingProvider extends ExistingSansProvider {
  * Configures the `Injector` to return a value by invoking a `useFactory` function.
  *
  * @see {@link FactoryProvider}
- * @see [Dependency Injection Guide](guide/di/dependency-injection.
+ * @see [Dependency Injection Guide](guide/di/dependency-injection)
  *
  * @publicApi
  */
@@ -421,7 +444,7 @@ interface FactorySansProvider {
 }
 /**
  * Configures the `Injector` to return a value by invoking a `useFactory` function.
- * @see [Dependency Injection Guide](guide/di/dependency-injection.
+ * @see [Dependency Injection Guide](guide/di/dependency-injection)
  *
  * @usageNotes
  *
@@ -478,7 +501,7 @@ interface TypeProvider extends Type<any> {
  * Configures the `Injector` to return a value by invoking a `useClass` function.
  * Base for `ClassProvider` decorator.
  *
- * @see [Dependency Injection Guide](guide/di/dependency-injection.
+ * @see [Dependency Injection Guide](guide/di/dependency-injection)
  *
  * @publicApi
  */
@@ -490,7 +513,7 @@ interface ClassSansProvider {
 }
 /**
  * Configures the `Injector` to return an instance of `useClass` for a token.
- * @see [Dependency Injection Guide](guide/di/dependency-injection.
+ * @see [Dependency Injection Guide](guide/di/dependency-injection)
  *
  * @usageNotes
  *
@@ -519,7 +542,7 @@ interface ClassProvider extends ClassSansProvider {
 }
 /**
  * Describes how the `Injector` should be configured.
- * @see [Dependency Injection Guide](guide/di/dependency-injection.
+ * @see [Dependency Injection Guide](guide/di/dependency-injection)
  *
  * @see {@link StaticProvider}
  *
@@ -657,6 +680,8 @@ type ProviderToken<T> = Type<T> | AbstractType<T> | InjectionToken<T>;
  *
  * {@example core/di/ts/injector_spec.ts region='injectInjector'}
  *
+ * @see [Types of injector hierarchies](guide/di/hierarchical-dependency-injection#types-of-injector-hierarchies)
+ *
  * @publicApi
  */
 declare abstract class Injector {
@@ -726,6 +751,8 @@ interface DestroyableInjector extends Injector {
  * is injected in a component or directive, the callbacks run when that component or
  * directive is destroyed. Otherwise the callbacks run when a corresponding injector is destroyed.
  *
+ * @see [Lifecycle DestroyRef](guide/components/lifecycle#destroyref)
+ *
  * @publicApi
  */
 declare abstract class DestroyRef {
@@ -744,10 +771,16 @@ declare abstract class DestroyRef {
      * // stop the destroy callback from executing if needed
      * unregisterFn();
      * ```
+     *
+     * @see [Lifecycle DestroyRef](guide/components/lifecycle#destroyref)
+     *
      */
     abstract onDestroy(callback: () => void): () => void;
     /**
      * Indicates whether the instance has already been destroyed.
+     *
+     * @see [Detecting instance destruction](guide/components/lifecycle#detecting-instance-destruction)
+     *
      */
     abstract get destroyed(): boolean;
 }
@@ -812,11 +845,12 @@ declare global {
  *
  * Note: integration is enabled in the development mode only, this operation is noop in the production mode.
  *
- * @experimental
+ * @publicApi v21.0
  *
  * @returns a function that can be invoked to stop sending profiling data.
+ * @see [Profiling with the Chrome DevTools](best-practices/profiling-with-chrome-devtools#recording-a-profile)
  */
 declare function enableProfiling(): () => void;
 
-export { DestroyRef, InjectionToken, Injector, InternalInjectFlags, JSACTION_EVENT_CONTRACT, Type, enableProfiling, isEnvironmentProviders, isSignal, signal, ɵunwrapWritableSignal };
+export { DestroyRef, InjectionToken, Injector, InternalInjectFlags, JSACTION_EVENT_CONTRACT, Type, enableProfiling, isEnvironmentProviders, isSignal, isWritableSignal, signal, ɵunwrapWritableSignal };
 export type { AbstractType, ClassProvider, ClassSansProvider, ConstructorProvider, ConstructorSansProvider, CreateSignalOptions, DestroyableInjector, EnvironmentProviders, EventCallback, ExistingProvider, ExistingSansProvider, FactoryProvider, FactorySansProvider, InjectOptions, InternalEnvironmentProviders, ModuleWithProviders, OutputRef, OutputRefSubscription, ProcessProvidersFunction, Provider, ProviderToken, Signal, StaticClassProvider, StaticClassSansProvider, StaticProvider, TypeProvider, ValueEqualityFn, ValueProvider, ValueSansProvider, Writable, WritableSignal };

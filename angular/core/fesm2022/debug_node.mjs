@@ -24957,7 +24957,7 @@ function ɵɵprojectionDef(projectionSlots) {
         const componentDef = tView.data[componentNode.directiveStart + componentNode.componentOffset];
         if (componentDef && componentDef.encapsulation === ViewEncapsulation.IsolatedShadowDom) {
             if (typeof ngDevMode !== 'undefined' && ngDevMode) {
-                throw new Error(`ng-content projection is not supported with ViewEncapsulation.IsolatedShadowDom. ` +
+                throw new Error(`ng-content projection is not supported with ViewEncapsulation.ExperimentalIsolatedShadowDom. ` +
                     `Use native <slot> elements instead. Content will remain in the light DOM and be projected via slots.`);
             }
             // Don't setup projection for IsolatedShadowDom

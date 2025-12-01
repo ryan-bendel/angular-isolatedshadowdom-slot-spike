@@ -693,7 +693,7 @@ function provideClientHydration(...features) {
   return makeEnvironmentProviders([typeof ngDevMode !== 'undefined' && ngDevMode ? provideEnabledBlockingInitialNavigationDetector() : [], _withDomHydration(), featuresKind.has(HydrationFeatureKind.NoHttpTransferCache) || hasHttpTransferCacheOptions ? [] : _withHttpTransferCache({}), providers]);
 }
 
-const VERSION = new Version('0.0.0');
+const VERSION = /* @__PURE__ */new Version('0.0.0');
 
 export { By, DomSanitizer, EVENT_MANAGER_PLUGINS, EventManagerPlugin, HAMMER_GESTURE_CONFIG, HAMMER_LOADER, HammerGestureConfig, HammerModule, HydrationFeatureKind, Meta, Title, VERSION, disableDebugTools, enableDebugTools, provideClientHydration, withEventReplay, withHttpTransferCacheOptions, withI18nSupport, withIncrementalHydration, withNoHttpTransferCache, DomSanitizerImpl as ɵDomSanitizerImpl, HammerGesturesPlugin as ɵHammerGesturesPlugin };
 //# sourceMappingURL=platform-browser.mjs.map
