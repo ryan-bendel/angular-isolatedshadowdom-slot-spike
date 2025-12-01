@@ -182,7 +182,7 @@ class SharedStylesHost {
   inline = new Map();
   external = new Map();
   standardShadowHosts = new Set();
-  isolatedShadowRoots = [];
+  isolatedShadowRoots = new Set();
   constructor(doc, appId, nonce, platformId = {}) {
     this.doc = doc;
     this.appId = appId;
@@ -207,13 +207,10 @@ class SharedStylesHost {
     urls?.forEach(value => this.removeUsage(value, this.external, shadowRoot));
   }
   addUsage(value, usagesMap, creator, targetShadowRoot) {
-    if (targetShadowRoot) {
-      this.addUsageToTarget(value, usagesMap, creator, targetShadowRoot);
-    } else {
-      this.addUsageToTarget(value, usagesMap, creator, this.doc.head, true);
-    }
+    const styleRoot = targetShadowRoot ?? this.doc.head;
+    this.addUsageToTarget(value, usagesMap, creator, styleRoot);
   }
-  addUsageToTarget(value, usagesMap, creator, styleRoot, shouldAddToHosts = false) {
+  addUsageToTarget(value, usagesMap, creator, styleRoot) {
     let usages = usagesMap.get(styleRoot);
     if (!usages) {
       usages = new Map();
@@ -227,17 +224,10 @@ class SharedStylesHost {
       record.usage++;
       return;
     }
-    const elements = [];
-    if (shouldAddToHosts && styleRoot === this.doc.head && this.standardShadowHosts.size > 0) {
-      for (const host of this.standardShadowHosts) {
-        elements.push(this.addElement(host, creator(value, this.doc)));
-      }
-    } else {
-      elements.push(this.addElement(styleRoot, creator(value, this.doc)));
-    }
+    const element = this.addElement(styleRoot, creator(value, this.doc));
     usages.set(value, {
       usage: 1,
-      elements
+      elements: [element]
     });
   }
   removeUsage(value, usagesMap, targetShadowRoot) {
@@ -327,17 +317,16 @@ class SharedStylesHost {
     if (typeof ShadowRoot === 'undefined') {
       throw new Error('ShadowRoot is not supported in this environment.');
     }
-    if (typeof ngDevMode !== 'undefined' && ngDevMode && this.isolatedShadowRoots.includes(shadowRoot)) {
+    if (typeof ngDevMode !== 'undefined' && ngDevMode && this.isolatedShadowRoots.has(shadowRoot)) {
       throw new Error('Shadow root is already registered.');
     }
-    this.isolatedShadowRoots.push(shadowRoot);
+    this.isolatedShadowRoots.add(shadowRoot);
   }
   removeShadowRoot(shadowRoot) {
-    const index = this.isolatedShadowRoots.indexOf(shadowRoot);
-    if (typeof ngDevMode !== 'undefined' && ngDevMode && ngDevMode && index === -1) {
+    if (typeof ngDevMode !== 'undefined' && ngDevMode && !this.isolatedShadowRoots.has(shadowRoot)) {
       throw new Error('Attempted to remove shadow root that was not previously added.');
     }
-    this.isolatedShadowRoots.splice(index, 1);
+    this.isolatedShadowRoots.delete(shadowRoot);
     const inlineUsages = this.inline.get(shadowRoot);
     const externalUsages = this.external.get(shadowRoot);
     if (inlineUsages) {
@@ -906,7 +895,7 @@ class ShadowDomRenderer extends DefaultDomRenderer2 {
         mode: 'open'
       });
     } else {
-      throw new Error('IsolatedShadowRoot is not supported in SSR mode until declarative shadow DOM is supported.');
+      throw new Error('Shadowdom is not supported in SSR mode until declarative shadow DOM is supported.');
     }
     if (isIsolated) {
       this.styleScopeService.registerIsolatedShadowRoot(this.shadowRoot);
@@ -960,14 +949,12 @@ class ShadowDomRenderer extends DefaultDomRenderer2 {
     return this.nodeOrShadowRoot(super.parentNode(this.nodeOrShadowRoot(node)));
   }
   destroy() {
-    if (!this.platformIsServer) {
-      if (this.styleScopeService.isIsolatedShadowRoot(this.shadowRoot)) {
-        this.styleScopeService.deregisterIsolatedShadowRoot(this.shadowRoot);
-        this.sharedStylesHost.removeShadowRoot(this.shadowRoot);
-      } else if (this.styleScopeService.isStandardShadowRoot(this.shadowRoot)) {
-        this.styleScopeService.deregisterStandardShadowRoot(this.shadowRoot);
-        this.sharedStylesHost.removeHost(this.shadowRoot);
-      }
+    if (this.styleScopeService.isIsolatedShadowRoot(this.shadowRoot)) {
+      this.styleScopeService.deregisterIsolatedShadowRoot(this.shadowRoot);
+      this.sharedStylesHost.removeShadowRoot(this.shadowRoot);
+    } else if (this.styleScopeService.isStandardShadowRoot(this.shadowRoot)) {
+      this.styleScopeService.deregisterStandardShadowRoot(this.shadowRoot);
+      this.sharedStylesHost.removeHost(this.shadowRoot);
     }
   }
 }

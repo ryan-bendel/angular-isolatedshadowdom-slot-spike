@@ -328,9 +328,6 @@ declare class SharedStylesHost implements OnDestroy {
     /**
      * Helper method that handles adding styles to a specific target container
      * while managing usage tracking and deduplication.
-     *
-     * @param shouldAddToHosts When true and styleRoot is document head, creates elements for all hosts
-     *                         (preserves original behavior for standard ShadowDom encapsulation)
      */
     private addUsageToTarget;
     /**
