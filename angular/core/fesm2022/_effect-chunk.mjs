@@ -1,6 +1,6 @@
 /**
- * @license Angular v21.1.0-next.0+sha-8f3fdc3-with-local-changes
- * (c) 2010-2025 Google LLC. https://angular.dev/
+ * @license Angular v0.0.0
+ * (c) 2010-2026 Google LLC. https://angular.dev/
  * License: MIT
  */
 
@@ -277,8 +277,7 @@ function createComputed(computation, equal) {
   };
   computed[SIGNAL] = node;
   if (typeof ngDevMode !== 'undefined' && ngDevMode) {
-    const debugName = node.debugName ? ' (' + node.debugName + ')' : '';
-    computed.toString = () => `[Computed${debugName}: ${node.value}]`;
+    computed.toString = () => `[Computed${node.debugName ? ' (' + node.debugName + ')' : ''}: ${String(node.value)}]`;
   }
   runPostProducerCreatedFn(node);
   return computed;
@@ -347,8 +346,7 @@ function createSignal(initialValue, equal) {
   const getter = () => signalGetFn(node);
   getter[SIGNAL] = node;
   if (typeof ngDevMode !== 'undefined' && ngDevMode) {
-    const debugName = node.debugName ? ' (' + node.debugName + ')' : '';
-    getter.toString = () => `[Signal${debugName}: ${node.value}]`;
+    getter.toString = () => `[Signal${node.debugName ? ' (' + node.debugName + ')' : ''}: ${String(node.value)}]`;
   }
   runPostProducerCreatedFn(node);
   const set = newValue => signalSetFn(node, newValue);
@@ -397,15 +395,6 @@ function signalValueChanged(node) {
   postSignalSetFn?.(node);
 }
 
-function untracked(nonReactiveReadsFn) {
-  const prevConsumer = setActiveConsumer(null);
-  try {
-    return nonReactiveReadsFn();
-  } finally {
-    setActiveConsumer(prevConsumer);
-  }
-}
-
 const BASE_EFFECT_NODE = /* @__PURE__ */(() => ({
   ...REACTIVE_NODE,
   consumerIsAlwaysLive: true,
@@ -428,5 +417,5 @@ function runEffect(node) {
   }
 }
 
-export { BASE_EFFECT_NODE, COMPUTING, ERRORED, REACTIVE_NODE, SIGNAL, SIGNAL_NODE, UNSET, consumerAfterComputation, consumerBeforeComputation, consumerDestroy, consumerMarkDirty, consumerPollProducersForChange, createComputed, createSignal, defaultEquals, finalizeConsumerAfterComputation, getActiveConsumer, isInNotificationPhase, isReactive, producerAccessed, producerIncrementEpoch, producerMarkClean, producerNotifyConsumers, producerUpdateValueVersion, producerUpdatesAllowed, resetConsumerBeforeComputation, runEffect, runPostProducerCreatedFn, runPostSignalSetFn, setActiveConsumer, setPostProducerCreatedFn, setPostSignalSetFn, setThrowInvalidWriteToSignalError, signalGetFn, signalSetFn, signalUpdateFn, untracked };
+export { BASE_EFFECT_NODE, COMPUTING, ERRORED, REACTIVE_NODE, SIGNAL, SIGNAL_NODE, UNSET, consumerAfterComputation, consumerBeforeComputation, consumerDestroy, consumerMarkDirty, consumerPollProducersForChange, createComputed, createSignal, defaultEquals, finalizeConsumerAfterComputation, getActiveConsumer, isInNotificationPhase, isReactive, producerAccessed, producerIncrementEpoch, producerMarkClean, producerNotifyConsumers, producerUpdateValueVersion, producerUpdatesAllowed, resetConsumerBeforeComputation, runEffect, runPostProducerCreatedFn, runPostSignalSetFn, setActiveConsumer, setPostProducerCreatedFn, setPostSignalSetFn, setThrowInvalidWriteToSignalError, signalGetFn, signalSetFn, signalUpdateFn };
 //# sourceMappingURL=_effect-chunk.mjs.map

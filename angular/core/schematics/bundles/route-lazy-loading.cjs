@@ -1,7 +1,7 @@
 'use strict';
 /**
- * @license Angular v21.1.0-next.0+sha-8f3fdc3-with-local-changes
- * (c) 2010-2025 Google LLC. https://angular.io/
+ * @license Angular v0.0.0
+ * (c) 2010-2026 Google LLC. https://angular.dev/
  * License: MIT
  */
 'use strict';
@@ -9,11 +9,11 @@
 var schematics = require('@angular-devkit/schematics');
 var fs = require('fs');
 var path = require('path');
-var compiler_host = require('./compiler_host-DBwYMlTo.cjs');
-var project_tsconfig_paths = require('./project_tsconfig_paths-CDVxT6Ov.cjs');
+var compiler_host = require('./compiler_host-CY14HvaP.cjs');
+var project_tsconfig_paths = require('./project_tsconfig_paths-DkkMibv-.cjs');
 var ts = require('typescript');
 var migrations = require('@angular/compiler-cli/private/migrations');
-var property_name = require('./property_name-BBwFuqMe.cjs');
+var property_name = require('./property_name-BCpALNpZ.cjs');
 require('@angular-devkit/core');
 
 /**
@@ -108,21 +108,10 @@ function isRouterCallExpression(node, typeChecker) {
     return false;
 }
 /**
- * Checks whether a node is a call expression to router provide function.
- * Example: provideRoutes(routes)
- */
-function isRouterProviderCallExpression(node, typeChecker) {
-    if (ts.isIdentifier(node.expression)) {
-        const moduleSymbol = typeChecker.getSymbolAtLocation(node.expression);
-        return moduleSymbol && moduleSymbol.name === 'provideRoutes';
-    }
-    return false;
-}
-/**
  * Checks whether a node is a call expression to provideRouter function.
  * Example: provideRouter(routes)
  */
-function isProvideRoutesCallExpression(node, typeChecker) {
+function isProvideRouterCallExpression(node, typeChecker) {
     if (ts.isIdentifier(node.expression)) {
         const moduleSymbol = typeChecker.getSymbolAtLocation(node.expression);
         return moduleSymbol && moduleSymbol.name === 'provideRouter';
@@ -157,9 +146,8 @@ function findRoutesArrayToMigrate(sourceFile, typeChecker) {
     sourceFile.forEachChild(function walk(node) {
         if (ts.isCallExpression(node)) {
             if (isRouterModuleCallExpression(node, typeChecker) ||
-                isRouterProviderCallExpression(node, typeChecker) ||
                 isRouterCallExpression(node, typeChecker) ||
-                isProvideRoutesCallExpression(node, typeChecker)) {
+                isProvideRouterCallExpression(node, typeChecker)) {
                 const arg = node.arguments[0]; // ex: RouterModule.forRoot(routes) or provideRouter(routes)
                 const routeFileImports = sourceFile.statements.filter(ts.isImportDeclaration);
                 if (ts.isArrayLiteralExpression(arg) && arg.elements.length > 0) {
@@ -172,7 +160,7 @@ function findRoutesArrayToMigrate(sourceFile, typeChecker) {
                 }
                 else if (ts.isIdentifier(arg)) {
                     // ex: reference to routes array: RouterModule.forRoot(routes)
-                    // RouterModule.forRoot(routes), provideRouter(routes), provideRoutes(routes)
+                    // RouterModule.forRoot(routes), provideRouter(routes)
                     const symbol = typeChecker.getSymbolAtLocation(arg);
                     if (!symbol?.declarations)
                         return;
@@ -308,7 +296,27 @@ function migrateRoute(element, route, typeChecker, reflector, tracker) {
     if (componentDeclaration.getSourceFile().fileName === route.routeFilePath) {
         return routeMigrationResults;
     }
-    const componentImport = route.routeFileImports.find((importDecl) => importDecl.importClause?.getText().includes(componentClassName));
+    // Resolve the import that provides this component by exact specifier match
+    // Handles default imports, named imports, and aliases (e.g., `import { Foo as Bar }`).
+    const componentImport = route.routeFileImports.find((importDecl) => {
+        const clause = importDecl.importClause;
+        if (!clause)
+            return false;
+        // Default import: import FooComponent from '...'
+        if (clause.name && ts.isIdentifier(clause.name) && clause.name.text === componentClassName) {
+            return true;
+        }
+        // Named imports: import { FooComponent } from '...'
+        const named = clause.namedBindings;
+        if (named && ts.isNamedImports(named)) {
+            return named.elements.some((el) => {
+                // Support alias: import { Foo as Bar }
+                const importedName = el.propertyName ? el.propertyName.text : el.name.text;
+                return importedName === componentClassName;
+            });
+        }
+        return false;
+    });
     // remove single and double quotes from the import path
     let componentImportPath = ts.isStringLiteral(componentImport?.moduleSpecifier)
         ? componentImport.moduleSpecifier.text

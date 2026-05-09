@@ -44,6 +44,10 @@ export declare enum ErrorCode {
      */
     INITIALIZER_API_DISALLOWED_MEMBER_VISIBILITY = 1053,
     /**
+     * Raised whenever there are duplicate binding property names for outputs, inputs & models.
+     */
+    DUPLICATE_BINDING_NAME = 1054,
+    /**
      * An Angular feature, like inputs, outputs or queries is incorrectly
      * declared on a static member.
      */
@@ -151,11 +155,15 @@ export declare enum ErrorCode {
      */
     COMPONENT_ANIMATIONS_CONFLICT = 2027,
     /**
+     * Raised when an `@Service` class is using constructor dependency injection.
+     */
+    SERVICE_CONSTRUCTOR_DI = 2028,
+    /**
      * Raised when a component with `ViewEncapsulation.ExperimentalIsolatedShadowDom` uses
      * `<ng-content>`. ExperimentalIsolatedShadowDom components must use native `<slot>` elements
      * instead.
      */
-    ISOLATED_SHADOW_DOM_INVALID_CONTENT_PROJECTION = 2028,
+    ISOLATED_SHADOW_DOM_INVALID_CONTENT_PROJECTION = 2029,
     SYMBOL_NOT_EXPORTED = 3001,
     /**
      * Raised when a relationship between directives and/or pipes would cause a cyclic import to be
@@ -371,8 +379,16 @@ export declare enum ErrorCode {
      * prefetch timer delay that is not earlier than the main timer, or an identical prefetch
      */
     DEFER_TRIGGER_MISCONFIGURATION = 8021,
-    /** Raised when the user has an unsupported binding on a `Field` directive. */
+    /** Raised when the user has an unsupported binding on a `FormField` directive. */
     FORM_FIELD_UNSUPPORTED_BINDING = 8022,
+    /**
+     * Raised when multiple components in the compilation scope match a given element in a template.
+     */
+    MULTIPLE_MATCHING_COMPONENTS = 8023,
+    /**
+     * Raised when a host directive input/output is exposed multiple times under the same name.
+     */
+    CONFLICTING_HOST_DIRECTIVE_BINDING = -8024,
     /**
      * A two way binding in a template has an incorrect syntax,
      * parentheses outside brackets. For example:

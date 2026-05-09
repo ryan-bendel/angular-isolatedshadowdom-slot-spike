@@ -1,12 +1,12 @@
 /**
- * @license Angular v21.1.0-next.0+sha-8f3fdc3-with-local-changes
- * (c) 2010-2025 Google LLC. https://angular.dev/
+ * @license Angular v0.0.0
+ * (c) 2010-2026 Google LLC. https://angular.dev/
  * License: MIT
  */
 
-import { inject, ErrorHandler, DestroyRef, RuntimeError, formatRuntimeError, signalAsReadonlyFn, assertInInjectionContext, Injector, effect, PendingTasks, untracked, signal } from './_untracked-chunk.mjs';
+import { inject, RuntimeError, formatRuntimeError, ErrorHandler, DestroyRef, InjectionToken, signalAsReadonlyFn, assertInInjectionContext, TransferState, effect, PendingTasks, signal, isSignal, Injector } from './_pending_tasks-chunk.mjs';
 import { setActiveConsumer, createComputed, SIGNAL } from './_effect-chunk.mjs';
-import { createLinkedSignal, linkedSignalSetFn, linkedSignalUpdateFn } from './_linked_signal-chunk.mjs';
+import { untracked as untracked$1, createLinkedSignal, linkedSignalSetFn, linkedSignalUpdateFn } from './_untracked-chunk.mjs';
 
 class OutputEmitterRef {
   destroyed = false;
@@ -61,13 +61,39 @@ function getOutputDestroyRef(ref) {
   return ref.destroyRef;
 }
 
+const CACHE_ACTIVE = new InjectionToken(typeof ngDevMode !== 'undefined' && ngDevMode ? 'STATE_CACHE_ACTIVE' : '');
+
 function computed(computation, options) {
   const getter = createComputed(computation, options?.equal);
-  if (ngDevMode) {
-    getter.toString = () => `[Computed: ${getter()}]`;
-    getter[SIGNAL].debugName = options?.debugName;
+  if (typeof ngDevMode !== 'undefined' && ngDevMode) {
+    const debugName = options?.debugName;
+    getter[SIGNAL].debugName = debugName;
+    getter.toString = () => `[Computed${debugName ? ' (' + debugName + ')' : ''}: ${getter()}]`;
   }
   return getter;
+}
+
+function untracked(nonReactiveReadsFn) {
+  return untracked$1(nonReactiveReadsFn);
+}
+
+class ResourceDependencyError extends Error {
+  dependency;
+  constructor(dependency) {
+    super('Dependency error', {
+      cause: dependency.error()
+    });
+    this.name = 'ResourceDependencyError';
+    this.dependency = dependency;
+  }
+}
+class ResourceParamsStatus extends Error {
+  _brand;
+  constructor(msg) {
+    super(msg);
+  }
+  static IDLE = new ResourceParamsStatus('IDLE');
+  static LOADING = new ResourceParamsStatus('LOADING');
 }
 
 const identityFn = v => v;
@@ -81,9 +107,9 @@ function linkedSignal(optionsOrComputation, options) {
   }
 }
 function upgradeLinkedSignalGetter(getter, debugName) {
-  if (ngDevMode) {
-    getter.toString = () => `[LinkedSignal: ${getter()}]`;
+  if (typeof ngDevMode !== 'undefined' && ngDevMode) {
     getter[SIGNAL].debugName = debugName;
+    getter.toString = () => `[LinkedSignal${debugName ? ' (' + debugName + ')' : ''}: ${getter()}]`;
   }
   const node = getter[SIGNAL];
   const upgradedGetter = getter;
@@ -99,7 +125,7 @@ function resource(options) {
   }
   const oldNameForParams = options.request;
   const params = options.params ?? oldNameForParams ?? (() => null);
-  return new ResourceImpl(params, getLoader(options), options.defaultValue, options.equal ? wrapEqualityFn(options.equal) : undefined, options.debugName, options.injector ?? inject(Injector));
+  return new ResourceImpl(params, getLoader(options), options.defaultValue, options.equal ? wrapEqualityFn(options.equal) : undefined, options.debugName, options.injector ?? inject(Injector), options.id);
 }
 class BaseWritableResource {
   value;
@@ -121,6 +147,23 @@ class BaseWritableResource {
     }
     return this.value() !== undefined;
   });
+  _snapshot;
+  get snapshot() {
+    return this._snapshot ??= computed(() => {
+      const status = this.status();
+      if (status === 'error') {
+        return {
+          status: 'error',
+          error: this.error()
+        };
+      } else {
+        return {
+          status,
+          value: this.value()
+        };
+      }
+    });
+  }
   hasValue() {
     return this.isValueDefined();
   }
@@ -132,6 +175,7 @@ class ResourceImpl extends BaseWritableResource {
   loaderFn;
   equal;
   debugName;
+  transferCacheKey;
   pendingTasks;
   state;
   extRequest;
@@ -142,7 +186,11 @@ class ResourceImpl extends BaseWritableResource {
   unregisterOnDestroy;
   status;
   error;
-  constructor(request, loaderFn, defaultValue, equal, debugName, injector) {
+  transferState;
+  constructor(request, loaderFn, defaultValue, equal, debugName, injector, transferCacheKey, getInitialStream) {
+    if (isInParamsFunction()) {
+      throw invalidResourceCreationInParams();
+    }
     super(computed(() => {
       const streamValue = this.state().stream?.();
       if (!streamValue) {
@@ -162,33 +210,86 @@ class ResourceImpl extends BaseWritableResource {
     this.loaderFn = loaderFn;
     this.equal = equal;
     this.debugName = debugName;
-    this.extRequest = linkedSignal({
-      source: request,
-      computation: request => ({
-        request,
-        reload: 0
-      }),
-      ...(ngDevMode ? createDebugNameObject(debugName, 'extRequest') : undefined)
-    });
+    this.transferCacheKey = transferCacheKey;
+    const cacheState = injector.get(CACHE_ACTIVE, undefined, {
+      optional: true
+    }) ?? {
+      isActive: false
+    };
+    this.transferState = injector.get(TransferState, undefined, {
+      optional: true
+    }) ?? undefined;
+    this.extRequest = linkedSignal(() => {
+      try {
+        setInParamsFunction(true);
+        return {
+          request: request(paramsContext),
+          reload: 0
+        };
+      } catch (error) {
+        rethrowFatalErrors(error);
+        if (error === ResourceParamsStatus.IDLE) {
+          return {
+            status: 'idle',
+            reload: 0
+          };
+        } else if (error === ResourceParamsStatus.LOADING) {
+          return {
+            status: 'loading',
+            reload: 0
+          };
+        }
+        return {
+          error: error,
+          reload: 0
+        };
+      } finally {
+        setInParamsFunction(false);
+      }
+    }, ngDevMode ? createDebugNameObject(debugName, 'extRequest') : undefined);
     this.state = linkedSignal({
       source: this.extRequest,
       computation: (extRequest, previous) => {
-        const status = extRequest.request === undefined ? 'idle' : 'loading';
-        if (!previous) {
-          return {
-            extRequest,
-            status,
-            previousStatus: 'idle',
-            stream: undefined
-          };
-        } else {
-          return {
-            extRequest,
-            status,
-            previousStatus: projectStatusOfState(previous.value),
-            stream: previous.value.extRequest.request === extRequest.request ? previous.value.stream : undefined
-          };
+        let {
+          request,
+          status,
+          error
+        } = extRequest;
+        let stream;
+        if (error) {
+          status = 'resolved';
+          stream = signal({
+            error: encapsulateResourceError(error)
+          }, ngDevMode ? createDebugNameObject(this.debugName, 'stream') : undefined);
+        } else if (!status) {
+          if (!previous) {
+            const transferState = this.transferState;
+            const cacheKey = this.transferCacheKey;
+            if (cacheState.isActive && cacheKey && transferState && request !== undefined) {
+              if (transferState.hasKey(cacheKey)) {
+                stream = signal({
+                  value: transferState.get(cacheKey, defaultValue)
+                }, ngDevMode ? createDebugNameObject(this.debugName, 'stream') : undefined);
+              }
+            }
+            if (!stream) {
+              stream = getInitialStream?.(extRequest.request);
+            }
+            getInitialStream = undefined;
+            status = request === undefined ? 'idle' : stream ? 'resolved' : 'loading';
+          } else {
+            status = request === undefined ? 'idle' : 'loading';
+            if (previous.value.extRequest.request === request) {
+              stream = previous.value.stream;
+            }
+          }
         }
+        return {
+          extRequest,
+          status,
+          previousStatus: previous ? projectStatusOfState(previous.value) : 'idle',
+          stream
+        };
       },
       ...(ngDevMode ? createDebugNameObject(debugName, 'state') : undefined)
     });
@@ -275,26 +376,48 @@ class ResourceImpl extends BaseWritableResource {
       signal: abortSignal
     } = this.pendingController = new AbortController();
     try {
-      const stream = await untracked(() => {
+      const stream = untracked(() => {
         return this.loaderFn({
           params: extRequest.request,
-          request: extRequest.request,
           abortSignal,
           previous: {
             status: previousStatus
           }
         });
       });
-      if (abortSignal.aborted || untracked(this.extRequest) !== extRequest) {
-        return;
+      const shouldDiscard = () => abortSignal.aborted || untracked(this.extRequest) !== extRequest;
+      if (isSignal(stream)) {
+        if (shouldDiscard()) {
+          return;
+        }
+        this.state.set({
+          extRequest,
+          status: 'resolved',
+          previousStatus: 'resolved',
+          stream
+        });
+        const result = untracked(stream);
+        if (typeof ngServerMode !== 'undefined' && ngServerMode) {
+          saveToTransferState(result, this.transferCacheKey, this.transferState);
+        }
+      } else {
+        const resolvedStream = await stream;
+        if (shouldDiscard()) {
+          return;
+        }
+        this.state.set({
+          extRequest,
+          status: 'resolved',
+          previousStatus: 'resolved',
+          stream: resolvedStream
+        });
+        const result = resolvedStream ? untracked(resolvedStream) : undefined;
+        if (typeof ngServerMode !== 'undefined' && ngServerMode) {
+          saveToTransferState(result, this.transferCacheKey, this.transferState);
+        }
       }
-      this.state.set({
-        extRequest,
-        status: 'resolved',
-        previousStatus: 'resolved',
-        stream
-      });
     } catch (err) {
+      rethrowFatalErrors(err);
       if (abortSignal.aborted || untracked(this.extRequest) !== extRequest) {
         return;
       }
@@ -316,6 +439,11 @@ class ResourceImpl extends BaseWritableResource {
     this.pendingController = undefined;
     this.resolvePendingTask?.();
     this.resolvePendingTask = undefined;
+  }
+}
+function saveToTransferState(result, transferCacheKey, transferState) {
+  if (transferCacheKey && transferState && result && isResolved(result)) {
+    transferState.set(transferCacheKey, result.value);
   }
 }
 function wrapEqualityFn(equal) {
@@ -359,10 +487,13 @@ function createDebugNameObject(resourceDebugName, internalSignalDebugName) {
   };
 }
 function encapsulateResourceError(error) {
-  if (error instanceof Error) {
+  if (isErrorLike(error)) {
     return error;
   }
   return new ResourceWrappedError(error);
+}
+function isErrorLike(error) {
+  return error instanceof Error || typeof error === 'object' && typeof error.name === 'string' && typeof error.message === 'string';
 }
 class ResourceValueError extends Error {
   constructor(error) {
@@ -378,6 +509,36 @@ class ResourceWrappedError extends Error {
     });
   }
 }
+function chain(resource) {
+  switch (resource.status()) {
+    case 'idle':
+      throw ResourceParamsStatus.IDLE;
+    case 'error':
+      throw new ResourceDependencyError(resource);
+    case 'loading':
+    case 'reloading':
+      throw ResourceParamsStatus.LOADING;
+  }
+  return resource.value();
+}
+const paramsContext = {
+  chain
+};
+let inParamsFunction = false;
+function isInParamsFunction() {
+  return inParamsFunction;
+}
+function setInParamsFunction(value) {
+  inParamsFunction = value;
+}
+function invalidResourceCreationInParams() {
+  return new RuntimeError(992, ngDevMode && `Cannot create a resource inside the \`params\` of another resource`);
+}
+function rethrowFatalErrors(error) {
+  if (error instanceof RuntimeError && error.code === 992) {
+    throw error;
+  }
+}
 
-export { OutputEmitterRef, ResourceImpl, computed, encapsulateResourceError, getOutputDestroyRef, linkedSignal, resource };
+export { CACHE_ACTIVE, OutputEmitterRef, ResourceDependencyError, ResourceImpl, ResourceParamsStatus, ResourceValueError, chain, computed, encapsulateResourceError, getOutputDestroyRef, invalidResourceCreationInParams, isInParamsFunction, linkedSignal, resource, rethrowFatalErrors, setInParamsFunction, untracked };
 //# sourceMappingURL=_resource-chunk.mjs.map

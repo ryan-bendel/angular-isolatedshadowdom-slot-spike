@@ -1,12 +1,12 @@
 /**
- * @license Angular v21.1.0-next.0+sha-8f3fdc3-with-local-changes
- * (c) 2010-2025 Google LLC. https://angular.dev/
+ * @license Angular v0.0.0
+ * (c) 2010-2026 Google LLC. https://angular.dev/
  * License: MIT
  */
 
 import { DOCUMENT, ɵgetDOM as _getDOM } from '@angular/common';
 import * as i0 from '@angular/core';
-import { Injectable, Inject, InjectionToken, ɵRuntimeError as _RuntimeError, APP_ID, CSP_NONCE, PLATFORM_ID, Optional, ViewEncapsulation, ɵTracingService as _TracingService, RendererStyleFlags2, ɵallLeavingAnimations as _allLeavingAnimations } from '@angular/core';
+import { Inject, Injectable, InjectionToken, ɵRuntimeError as _RuntimeError, APP_ID, CSP_NONCE, PLATFORM_ID, Optional, ViewEncapsulation, ɵSHARED_STYLES_HOST as _SHARED_STYLES_HOST, ɵTracingService as _TracingService, RendererStyleFlags2, ɵallLeavingAnimations as _allLeavingAnimations } from '@angular/core';
 
 class EventManagerPlugin {
   _doc;
@@ -32,7 +32,7 @@ class DomEventsPlugin extends EventManagerPlugin {
   }
   static ɵfac = i0.ɵɵngDeclareFactory({
     minVersion: "12.0.0",
-    version: "21.1.0-next.0+sha-8f3fdc3-with-local-changes",
+    version: "0.0.0",
     ngImport: i0,
     type: DomEventsPlugin,
     deps: [{
@@ -42,14 +42,14 @@ class DomEventsPlugin extends EventManagerPlugin {
   });
   static ɵprov = i0.ɵɵngDeclareInjectable({
     minVersion: "12.0.0",
-    version: "21.1.0-next.0+sha-8f3fdc3-with-local-changes",
+    version: "0.0.0",
     ngImport: i0,
     type: DomEventsPlugin
   });
 }
 i0.ɵɵngDeclareClassMetadata({
   minVersion: "12.0.0",
-  version: "21.1.0-next.0+sha-8f3fdc3-with-local-changes",
+  version: "0.0.0",
   ngImport: i0,
   type: DomEventsPlugin,
   decorators: [{
@@ -64,7 +64,7 @@ i0.ɵɵngDeclareClassMetadata({
   }]
 });
 
-const EVENT_MANAGER_PLUGINS = new InjectionToken(typeof ngDevMode !== undefined && ngDevMode ? 'EventManagerPlugins' : '');
+const EVENT_MANAGER_PLUGINS = new InjectionToken(typeof ngDevMode !== 'undefined' && ngDevMode ? 'EventManagerPlugins' : '');
 class EventManager {
   _zone;
   _plugins;
@@ -103,7 +103,7 @@ class EventManager {
   }
   static ɵfac = i0.ɵɵngDeclareFactory({
     minVersion: "12.0.0",
-    version: "21.1.0-next.0+sha-8f3fdc3-with-local-changes",
+    version: "0.0.0",
     ngImport: i0,
     type: EventManager,
     deps: [{
@@ -115,14 +115,14 @@ class EventManager {
   });
   static ɵprov = i0.ɵɵngDeclareInjectable({
     minVersion: "12.0.0",
-    version: "21.1.0-next.0+sha-8f3fdc3-with-local-changes",
+    version: "0.0.0",
     ngImport: i0,
     type: EventManager
   });
 }
 i0.ɵɵngDeclareClassMetadata({
   minVersion: "12.0.0",
-  version: "21.1.0-next.0+sha-8f3fdc3-with-local-changes",
+  version: "0.0.0",
   ngImport: i0,
   type: EventManager,
   decorators: [{
@@ -152,22 +152,22 @@ function createStyleElement(style, doc) {
 }
 function addServerStyles(doc, appId, inline, external) {
   const elements = doc.head?.querySelectorAll(`style[${APP_ID_ATTRIBUTE_NAME}="${appId}"],link[${APP_ID_ATTRIBUTE_NAME}="${appId}"]`);
-  if (elements) {
-    for (const styleElement of elements) {
-      styleElement.removeAttribute(APP_ID_ATTRIBUTE_NAME);
-      if (styleElement instanceof HTMLLinkElement) {
-        external.set(styleElement.href.slice(styleElement.href.lastIndexOf('/') + 1), {
-          usage: 0,
-          elements: [styleElement]
-        });
-      } else if (styleElement.textContent) {
-        inline.set(styleElement.textContent, {
-          usage: 0,
-          elements: [styleElement]
-        });
-      }
+  if (!elements || elements.length === 0) return false;
+  for (const styleElement of elements) {
+    styleElement.removeAttribute(APP_ID_ATTRIBUTE_NAME);
+    if (styleElement instanceof HTMLLinkElement) {
+      external.set(styleElement.href.slice(styleElement.href.lastIndexOf('/') + 1), {
+        usage: 0,
+        elements: [styleElement]
+      });
+    } else if (styleElement.textContent) {
+      inline.set(styleElement.textContent, {
+        usage: 0,
+        elements: [styleElement]
+      });
     }
   }
+  return true;
 }
 function createLinkElement(url, doc) {
   const linkElement = doc.createElement('link');
@@ -186,14 +186,14 @@ class SharedStylesHost {
     this.doc = doc;
     this.appId = appId;
     this.nonce = nonce;
-    addServerStyles(doc, appId, this.inline, this.external);
-    this.hosts.add(doc.head);
+    const added = addServerStyles(doc, appId, this.inline, this.external);
+    if (added) this.hosts.add(doc.head);
   }
-  addStyles(styles, urls) {
+  addStyles(styles, urls, hostNode) {
     for (const value of styles) {
-      this.addUsage(value, this.inline, createStyleElement);
+      this.addUsage(value, this.inline, createStyleElement, hostNode);
     }
-    urls?.forEach(value => this.addUsage(value, this.external, createLinkElement));
+    urls?.forEach(value => this.addUsage(value, this.external, createLinkElement, hostNode));
   }
   removeStyles(styles, urls) {
     for (const value of styles) {
@@ -201,17 +201,21 @@ class SharedStylesHost {
     }
     urls?.forEach(value => this.removeUsage(value, this.external));
   }
-  addUsage(value, usages, creator) {
+  addUsage(value, usages, creator, hostNode) {
     const record = usages.get(value);
     if (record) {
       if ((typeof ngDevMode === 'undefined' || ngDevMode) && record.usage === 0) {
         record.elements.forEach(element => element.setAttribute('ng-style-reused', ''));
       }
       record.usage++;
+      if (hostNode && !record.elements.some(element => element.parentNode === hostNode)) {
+        record.elements.push(this.addElement(hostNode, creator(value, this.doc)));
+      }
     } else {
+      const hosts = hostNode && !this.hosts.has(hostNode) ? [...this.hosts, hostNode] : this.hosts;
       usages.set(value, {
         usage: 1,
-        elements: [...this.hosts].map(host => this.addElement(host, creator(value, this.doc)))
+        elements: [...hosts].map(host => this.addElement(host, creator(value, this.doc)))
       });
     }
   }
@@ -234,6 +238,7 @@ class SharedStylesHost {
     this.hosts.clear();
   }
   addHost(hostNode) {
+    if (this.hosts.has(hostNode)) return;
     this.hosts.add(hostNode);
     for (const [style, {
       elements
@@ -248,6 +253,17 @@ class SharedStylesHost {
   }
   removeHost(hostNode) {
     this.hosts.delete(hostNode);
+    for (const record of [...this.inline.values(), ...this.external.values()]) {
+      const remaining = [];
+      for (const element of record.elements) {
+        if (element.parentNode === hostNode) {
+          element.remove();
+        } else {
+          remaining.push(element);
+        }
+      }
+      record.elements = remaining;
+    }
   }
   addElement(host, element) {
     if (this.nonce) {
@@ -260,7 +276,7 @@ class SharedStylesHost {
   }
   static ɵfac = i0.ɵɵngDeclareFactory({
     minVersion: "12.0.0",
-    version: "21.1.0-next.0+sha-8f3fdc3-with-local-changes",
+    version: "0.0.0",
     ngImport: i0,
     type: SharedStylesHost,
     deps: [{
@@ -277,14 +293,14 @@ class SharedStylesHost {
   });
   static ɵprov = i0.ɵɵngDeclareInjectable({
     minVersion: "12.0.0",
-    version: "21.1.0-next.0+sha-8f3fdc3-with-local-changes",
+    version: "0.0.0",
     ngImport: i0,
     type: SharedStylesHost
   });
 }
 i0.ɵɵngDeclareClassMetadata({
   minVersion: "12.0.0",
-  version: "21.1.0-next.0+sha-8f3fdc3-with-local-changes",
+  version: "0.0.0",
   ngImport: i0,
   type: SharedStylesHost,
   decorators: [{
@@ -333,8 +349,9 @@ const PROTOCOL_REGEXP = /^https?:/;
 const COMPONENT_VARIABLE = '%COMP%';
 const HOST_ATTR = `_nghost-${COMPONENT_VARIABLE}`;
 const CONTENT_ATTR = `_ngcontent-${COMPONENT_VARIABLE}`;
+const ISOLATED_SHADOW_STYLE_HOST = Symbol('ngIsolatedShadowStyleHost');
 const REMOVE_STYLES_ON_COMPONENT_DESTROY_DEFAULT = true;
-const REMOVE_STYLES_ON_COMPONENT_DESTROY = new InjectionToken(typeof ngDevMode !== undefined && ngDevMode ? 'RemoveStylesOnCompDestroy' : '', {
+const REMOVE_STYLES_ON_COMPONENT_DESTROY = new InjectionToken(typeof ngDevMode !== 'undefined' && ngDevMode ? 'RemoveStylesOnCompDestroy' : '', {
   factory: () => REMOVE_STYLES_ON_COMPONENT_DESTROY_DEFAULT
 });
 function shimContentAttribute(componentShortId) {
@@ -377,7 +394,6 @@ class DomRendererFactory2 {
   tracingService;
   rendererByCompId = new Map();
   defaultRenderer;
-  platformIsServer;
   constructor(eventManager, sharedStylesHost, appId, removeStylesOnCompDestroy, doc, ngZone, nonce = null, tracingService = null) {
     this.eventManager = eventManager;
     this.sharedStylesHost = sharedStylesHost;
@@ -387,8 +403,7 @@ class DomRendererFactory2 {
     this.ngZone = ngZone;
     this.nonce = nonce;
     this.tracingService = tracingService;
-    this.platformIsServer = typeof ngServerMode !== 'undefined' && ngServerMode;
-    this.defaultRenderer = new DefaultDomRenderer2(eventManager, doc, ngZone, this.platformIsServer, this.tracingService);
+    this.defaultRenderer = new DefaultDomRenderer2(eventManager, doc, ngZone, this.tracingService);
   }
   createRenderer(element, type) {
     if (!element || !type) {
@@ -406,10 +421,11 @@ class DomRendererFactory2 {
       }
     }
     const renderer = this.getOrCreateRenderer(element, type);
+    const isolatedStyleHost = getIsolatedShadowStyleHost(element);
     if (renderer instanceof EmulatedEncapsulationDomRenderer2) {
-      renderer.applyToHost(element);
+      renderer.applyToHost(element, isolatedStyleHost);
     } else if (renderer instanceof NoneEncapsulationDomRenderer) {
-      renderer.applyStyles();
+      renderer.applyStyles(isolatedStyleHost);
     }
     return renderer;
   }
@@ -422,18 +438,17 @@ class DomRendererFactory2 {
       const eventManager = this.eventManager;
       const sharedStylesHost = this.sharedStylesHost;
       const removeStylesOnCompDestroy = this.removeStylesOnCompDestroy;
-      const platformIsServer = this.platformIsServer;
       const tracingService = this.tracingService;
       switch (type.encapsulation) {
         case ViewEncapsulation.Emulated:
-          renderer = new EmulatedEncapsulationDomRenderer2(eventManager, sharedStylesHost, type, this.appId, removeStylesOnCompDestroy, doc, ngZone, platformIsServer, tracingService);
+          renderer = new EmulatedEncapsulationDomRenderer2(eventManager, sharedStylesHost, type, this.appId, removeStylesOnCompDestroy, doc, ngZone, tracingService);
           break;
         case ViewEncapsulation.ShadowDom:
-          return new ShadowDomRenderer(eventManager, element, type, doc, ngZone, this.nonce, platformIsServer, tracingService, sharedStylesHost);
+          return new ShadowDomRenderer(eventManager, element, type, doc, ngZone, this.nonce, tracingService, sharedStylesHost);
         case ViewEncapsulation.ExperimentalIsolatedShadowDom:
-          return new ShadowDomRenderer(eventManager, element, type, doc, ngZone, this.nonce, platformIsServer, tracingService);
+          return new ShadowDomRenderer(eventManager, element, type, doc, ngZone, this.nonce, tracingService, sharedStylesHost, false);
         default:
-          renderer = new NoneEncapsulationDomRenderer(eventManager, sharedStylesHost, type, removeStylesOnCompDestroy, doc, ngZone, platformIsServer, tracingService);
+          renderer = new NoneEncapsulationDomRenderer(eventManager, sharedStylesHost, type, removeStylesOnCompDestroy, doc, ngZone, tracingService);
           break;
       }
       rendererByCompId.set(type.id, renderer);
@@ -448,13 +463,13 @@ class DomRendererFactory2 {
   }
   static ɵfac = i0.ɵɵngDeclareFactory({
     minVersion: "12.0.0",
-    version: "21.1.0-next.0+sha-8f3fdc3-with-local-changes",
+    version: "0.0.0",
     ngImport: i0,
     type: DomRendererFactory2,
     deps: [{
       token: EventManager
     }, {
-      token: SharedStylesHost
+      token: _SHARED_STYLES_HOST
     }, {
       token: APP_ID
     }, {
@@ -473,14 +488,14 @@ class DomRendererFactory2 {
   });
   static ɵprov = i0.ɵɵngDeclareInjectable({
     minVersion: "12.0.0",
-    version: "21.1.0-next.0+sha-8f3fdc3-with-local-changes",
+    version: "0.0.0",
     ngImport: i0,
     type: DomRendererFactory2
   });
 }
 i0.ɵɵngDeclareClassMetadata({
   minVersion: "12.0.0",
-  version: "21.1.0-next.0+sha-8f3fdc3-with-local-changes",
+  version: "0.0.0",
   ngImport: i0,
   type: DomRendererFactory2,
   decorators: [{
@@ -489,7 +504,11 @@ i0.ɵɵngDeclareClassMetadata({
   ctorParameters: () => [{
     type: EventManager
   }, {
-    type: SharedStylesHost
+    type: SharedStylesHost,
+    decorators: [{
+      type: Inject,
+      args: [_SHARED_STYLES_HOST]
+    }]
   }, {
     type: undefined,
     decorators: [{
@@ -530,15 +549,13 @@ class DefaultDomRenderer2 {
   eventManager;
   doc;
   ngZone;
-  platformIsServer;
   tracingService;
   data = Object.create(null);
   throwOnSyntheticProps = true;
-  constructor(eventManager, doc, ngZone, platformIsServer, tracingService) {
+  constructor(eventManager, doc, ngZone, tracingService) {
     this.eventManager = eventManager;
     this.doc = doc;
     this.ngZone = ngZone;
-    this.platformIsServer = platformIsServer;
     this.tracingService = tracingService;
   }
   destroy() {}
@@ -557,11 +574,13 @@ class DefaultDomRenderer2 {
   }
   appendChild(parent, newChild) {
     const targetParent = isTemplateNode(parent) ? parent.content : parent;
+    copyIsolatedShadowStyleHost(targetParent, newChild);
     targetParent.appendChild(newChild);
   }
   insertBefore(parent, newChild, refChild) {
     if (parent) {
       const targetParent = isTemplateNode(parent) ? parent.content : parent;
+      copyIsolatedShadowStyleHost(targetParent, newChild);
       targetParent.insertBefore(newChild, refChild);
     }
   }
@@ -677,18 +696,32 @@ function checkNoSyntheticProp(name, nameKind) {
 function isTemplateNode(node) {
   return node.tagName === 'TEMPLATE' && node.content !== undefined;
 }
+function getIsolatedShadowStyleHost(node) {
+  return node?.[ISOLATED_SHADOW_STYLE_HOST];
+}
+function setIsolatedShadowStyleHost(node, styleHost) {
+  if (styleHost) {
+    node[ISOLATED_SHADOW_STYLE_HOST] = styleHost;
+  }
+}
+function copyIsolatedShadowStyleHost(parent, child) {
+  setIsolatedShadowStyleHost(child, getIsolatedShadowStyleHost(parent));
+}
 class ShadowDomRenderer extends DefaultDomRenderer2 {
   hostEl;
   sharedStylesHost;
+  registerSharedStylesHost;
   shadowRoot;
-  constructor(eventManager, hostEl, component, doc, ngZone, nonce, platformIsServer, tracingService, sharedStylesHost) {
-    super(eventManager, doc, ngZone, platformIsServer, tracingService);
+  constructor(eventManager, hostEl, component, doc, ngZone, nonce, tracingService, sharedStylesHost, registerSharedStylesHost = !!sharedStylesHost) {
+    super(eventManager, doc, ngZone, tracingService);
     this.hostEl = hostEl;
     this.sharedStylesHost = sharedStylesHost;
+    this.registerSharedStylesHost = registerSharedStylesHost;
     this.shadowRoot = hostEl.attachShadow({
       mode: 'open'
     });
-    if (this.sharedStylesHost) {
+    setIsolatedShadowStyleHost(this.shadowRoot, this.registerSharedStylesHost ? undefined : this.shadowRoot);
+    if (this.registerSharedStylesHost) {
       this.sharedStylesHost.addHost(this.shadowRoot);
     }
     let styles = component.styles;
@@ -719,6 +752,11 @@ class ShadowDomRenderer extends DefaultDomRenderer2 {
   nodeOrShadowRoot(node) {
     return node === this.hostEl ? this.shadowRoot : node;
   }
+  createElement(name, namespace) {
+    const element = super.createElement(name, namespace);
+    setIsolatedShadowStyleHost(element, getIsolatedShadowStyleHost(this.shadowRoot));
+    return element;
+  }
   appendChild(parent, newChild) {
     return super.appendChild(this.nodeOrShadowRoot(parent), newChild);
   }
@@ -742,8 +780,8 @@ class NoneEncapsulationDomRenderer extends DefaultDomRenderer2 {
   removeStylesOnCompDestroy;
   styles;
   styleUrls;
-  constructor(eventManager, sharedStylesHost, component, removeStylesOnCompDestroy, doc, ngZone, platformIsServer, tracingService, compId) {
-    super(eventManager, doc, ngZone, platformIsServer, tracingService);
+  constructor(eventManager, sharedStylesHost, component, removeStylesOnCompDestroy, doc, ngZone, tracingService, compId) {
+    super(eventManager, doc, ngZone, tracingService);
     this.sharedStylesHost = sharedStylesHost;
     this.removeStylesOnCompDestroy = removeStylesOnCompDestroy;
     let styles = component.styles;
@@ -754,8 +792,8 @@ class NoneEncapsulationDomRenderer extends DefaultDomRenderer2 {
     this.styles = compId ? shimStylesContent(compId, styles) : styles;
     this.styleUrls = component.getExternalStyles?.(compId);
   }
-  applyStyles() {
-    this.sharedStylesHost.addStyles(this.styles, this.styleUrls);
+  applyStyles(hostNode) {
+    this.sharedStylesHost.addStyles(this.styles, this.styleUrls, hostNode);
   }
   destroy() {
     if (!this.removeStylesOnCompDestroy) {
@@ -769,14 +807,14 @@ class NoneEncapsulationDomRenderer extends DefaultDomRenderer2 {
 class EmulatedEncapsulationDomRenderer2 extends NoneEncapsulationDomRenderer {
   contentAttr;
   hostAttr;
-  constructor(eventManager, sharedStylesHost, component, appId, removeStylesOnCompDestroy, doc, ngZone, platformIsServer, tracingService) {
+  constructor(eventManager, sharedStylesHost, component, appId, removeStylesOnCompDestroy, doc, ngZone, tracingService) {
     const compId = appId + '-' + component.id;
-    super(eventManager, sharedStylesHost, component, removeStylesOnCompDestroy, doc, ngZone, platformIsServer, tracingService, compId);
+    super(eventManager, sharedStylesHost, component, removeStylesOnCompDestroy, doc, ngZone, tracingService, compId);
     this.contentAttr = shimContentAttribute(compId);
     this.hostAttr = shimHostAttribute(compId);
   }
-  applyToHost(element) {
-    this.applyStyles();
+  applyToHost(element, hostNode) {
+    this.applyStyles(hostNode);
     this.setAttribute(element, this.hostAttr, '');
   }
   createElement(parent, name) {
