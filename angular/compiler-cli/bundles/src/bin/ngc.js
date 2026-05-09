@@ -5,19 +5,18 @@
     
 import {
   main
-} from "../../chunk-MSLWRSCC.js";
-import "../../chunk-PCBAZ6CG.js";
-import "../../chunk-4FTGWWLZ.js";
-import "../../chunk-EK2KQALQ.js";
-import "../../chunk-G6TWEH7Q.js";
-import "../../chunk-ZUYMYKXC.js";
+} from "../../chunk-YKIDFJPQ.js";
+import "../../chunk-RI7TZYME.js";
+import "../../chunk-6MNBUZHZ.js";
+import "../../chunk-6YWQPHFU.js";
+import "../../chunk-LS5RJ5CS.js";
 import {
   setFileSystem
-} from "../../chunk-UTWH365F.js";
+} from "../../chunk-JEXAXD23.js";
 import {
   NodeJSFileSystem
-} from "../../chunk-KWAGEHJJ.js";
-import "../../chunk-IEBNHER4.js";
+} from "../../chunk-XYYEESKY.js";
+import "../../chunk-G7GFT6BU.js";
 
 // packages/compiler-cli/src/bin/ngc.ts
 import "reflect-metadata";
@@ -38,4 +37,3 @@ runNgcComamnd().catch((e) => {
  * Use of this source code is governed by an MIT-style license that can be
  * found in the LICENSE file at https://angular.dev/license
  */
-//# sourceMappingURL=ngc.js.map

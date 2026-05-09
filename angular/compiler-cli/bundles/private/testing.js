@@ -3,26 +3,23 @@
       const require = __cjsCompatRequire(import.meta.url);
     
 import {
-  getInitializerApiJitTransform
-} from "../chunk-EK2KQALQ.js";
-import {
   ImportedSymbolsTracker,
-  TypeScriptReflectionHost
-} from "../chunk-G6TWEH7Q.js";
-import "../chunk-ZUYMYKXC.js";
+  TypeScriptReflectionHost,
+  getInitializerApiJitTransform
+} from "../chunk-6YWQPHFU.js";
+import "../chunk-LS5RJ5CS.js";
 import {
   InvalidFileSystem,
   absoluteFrom,
   basename,
   dirname,
-  getFileSystem,
   resolve,
   setFileSystem
-} from "../chunk-UTWH365F.js";
+} from "../chunk-JEXAXD23.js";
 import {
   NodeJSFileSystem
-} from "../chunk-KWAGEHJJ.js";
-import "../chunk-IEBNHER4.js";
+} from "../chunk-XYYEESKY.js";
+import "../chunk-G7GFT6BU.js";
 
 // packages/compiler-cli/src/ngtsc/file_system/testing/src/mock_file_system.js
 var MockFileSystem = class {
@@ -210,37 +207,15 @@ var MockFileSystem = class {
   }
   copyInto(from, to) {
     for (const path in from) {
+      const item = from[path];
       const canonicalPath = this.getCanonicalPath(path);
-      Object.defineProperty(to, canonicalPath, {
-        configurable: true,
-        enumerable: true,
-        get: () => {
-          const item = from[path];
-          let cloned;
-          if (isSymLink(item)) {
-            cloned = new SymLink(this.getCanonicalPath(item.path));
-          } else if (isFolder(item)) {
-            cloned = this.cloneFolder(item);
-          } else {
-            cloned = item;
-          }
-          Object.defineProperty(to, canonicalPath, {
-            configurable: true,
-            enumerable: true,
-            value: cloned,
-            writable: true
-          });
-          return cloned;
-        },
-        set: (value) => {
-          Object.defineProperty(to, canonicalPath, {
-            configurable: true,
-            enumerable: true,
-            value,
-            writable: true
-          });
-        }
-      });
+      if (isSymLink(item)) {
+        to[canonicalPath] = new SymLink(this.getCanonicalPath(item.path));
+      } else if (isFolder(item)) {
+        to[canonicalPath] = this.cloneFolder(item);
+      } else {
+        to[canonicalPath] = from[path];
+      }
     }
   }
   findFromPath(path, options) {
@@ -440,9 +415,8 @@ var FS_ALL = [FS_OS_X, FS_WINDOWS, FS_UNIX, FS_NATIVE];
 function runInEachFileSystemFn(callback) {
   FS_ALL.forEach((os2) => runInFileSystem(os2, callback, false));
 }
-var counter = 0;
 function runInFileSystem(os2, callback, error) {
-  describe(`<<FileSystem: ${os2}>>/${counter++}`, () => {
+  describe(`<<FileSystem: ${os2}>>`, () => {
     beforeEach(() => initMockFileSystem(os2));
     afterEach(() => setFileSystem(new InvalidFileSystem()));
     callback(os2);
@@ -458,11 +432,7 @@ runInEachFileSystem.native = (callback) => runInFileSystem(FS_NATIVE, callback, 
 runInEachFileSystem.osX = (callback) => runInFileSystem(FS_OS_X, callback, true);
 runInEachFileSystem.unix = (callback) => runInFileSystem(FS_UNIX, callback, true);
 runInEachFileSystem.windows = (callback) => runInFileSystem(FS_WINDOWS, callback, true);
-var mockFileSystemLocked = false;
 function initMockFileSystem(os2, cwd) {
-  if (mockFileSystemLocked) {
-    return getFileSystem();
-  }
   const fs = createMockFileSystem(os2, cwd);
   setFileSystem(fs);
   monkeyPatchTypeScript(fs);
@@ -554,4 +524,3 @@ export {
  * Use of this source code is governed by an MIT-style license that can be
  * found in the LICENSE file at https://angular.dev/license
  */
-//# sourceMappingURL=testing.js.map

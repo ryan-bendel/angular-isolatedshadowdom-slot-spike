@@ -1,12 +1,12 @@
 /**
- * @license Angular v22.0.0-next.12
- * (c) 2010-2026 Google LLC. https://angular.dev/
+ * @license Angular v21.1.0-next.0+sha-8f3fdc3-with-local-changes
+ * (c) 2010-2025 Google LLC. https://angular.dev/
  * License: MIT
  */
 
 import { DOCUMENT } from '@angular/common';
 import * as i0 from '@angular/core';
-import { InjectionToken, inject, Injector, ɵRuntimeError as _RuntimeError, ɵChangeDetectionScheduler as _ChangeDetectionScheduler, Injectable, ɵperformanceMarkFeature as _performanceMarkFeature, makeEnvironmentProviders, RendererFactory2, ANIMATION_MODULE_TYPE, NgZone } from '@angular/core';
+import { inject, Injector, ɵRuntimeError as _RuntimeError, ɵChangeDetectionScheduler as _ChangeDetectionScheduler, Injectable, InjectionToken, ɵperformanceMarkFeature as _performanceMarkFeature, makeEnvironmentProviders, RendererFactory2, NgZone, ANIMATION_MODULE_TYPE } from '@angular/core';
 import { DomRendererFactory2 } from './_dom_renderer-chunk.mjs';
 
 const ANIMATION_PREFIX = '@';
@@ -92,7 +92,7 @@ class AsyncAnimationRendererFactory {
   }
   static ɵfac = i0.ɵɵngDeclareFactory({
     minVersion: "12.0.0",
-    version: "22.0.0-next.12",
+    version: "21.1.0-next.0+sha-8f3fdc3-with-local-changes",
     ngImport: i0,
     type: AsyncAnimationRendererFactory,
     deps: "invalid",
@@ -100,14 +100,14 @@ class AsyncAnimationRendererFactory {
   });
   static ɵprov = i0.ɵɵngDeclareInjectable({
     minVersion: "12.0.0",
-    version: "22.0.0-next.12",
+    version: "21.1.0-next.0+sha-8f3fdc3-with-local-changes",
     ngImport: i0,
     type: AsyncAnimationRendererFactory
   });
 }
 i0.ɵɵngDeclareClassMetadata({
   minVersion: "12.0.0",
-  version: "22.0.0-next.12",
+  version: "21.1.0-next.0+sha-8f3fdc3-with-local-changes",
   ngImport: i0,
   type: AsyncAnimationRendererFactory,
   decorators: [{
@@ -215,7 +215,7 @@ class DynamicDelegationRenderer {
     return this.replay !== null && propOrEventName.startsWith(ANIMATION_PREFIX);
   }
 }
-const ɵASYNC_ANIMATION_LOADING_SCHEDULER_FN = new InjectionToken(typeof ngDevMode !== 'undefined' && ngDevMode ? 'async_animation_loading_scheduler_fn' : '');
+const ɵASYNC_ANIMATION_LOADING_SCHEDULER_FN = new InjectionToken(typeof ngDevMode !== undefined && ngDevMode ? 'async_animation_loading_scheduler_fn' : '');
 
 function provideAnimationsAsync(type = 'animations') {
   _performanceMarkFeature('NgAsyncAnimations');

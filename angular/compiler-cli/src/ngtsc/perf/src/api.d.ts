@@ -194,65 +194,61 @@ export declare enum PerfEvent {
      */
     AnalyzePipe = 6,
     /**
-     * An `@Service` class was analyzed.
-     */
-    AnalyzeService = 7,
-    /**
      * A trait was analyzed.
      *
      * In theory, this should be the sum of the `Analyze` counters for each decorator type.
      */
-    TraitAnalyze = 8,
+    TraitAnalyze = 7,
     /**
      * A trait had a prior analysis available from an incremental program, and did not need to be
      * re-analyzed.
      */
-    TraitReuseAnalysis = 9,
+    TraitReuseAnalysis = 8,
     /**
      * A `ts.SourceFile` directly changed between the prior program and a new incremental compilation.
      */
-    SourceFilePhysicalChange = 10,
+    SourceFilePhysicalChange = 9,
     /**
      * A `ts.SourceFile` did not physically changed, but according to the file dependency graph, has
      * logically changed between the prior program and a new incremental compilation.
      */
-    SourceFileLogicalChange = 11,
+    SourceFileLogicalChange = 10,
     /**
      * A `ts.SourceFile` has not logically changed and all of its analysis results were thus available
      * for reuse.
      */
-    SourceFileReuseAnalysis = 12,
+    SourceFileReuseAnalysis = 11,
     /**
      * A Type Check Block (TCB) was generated.
      */
-    GenerateTcb = 13,
+    GenerateTcb = 12,
     /**
      * A Type Check Block (TCB) could not be generated because inlining was disabled, and the block
      * would've required inlining.
      */
-    SkipGenerateTcbNoInline = 14,
+    SkipGenerateTcbNoInline = 13,
     /**
      * A `.ngtypecheck.ts` file could be reused from the previous program and did not need to be
      * regenerated.
      */
-    ReuseTypeCheckFile = 15,
+    ReuseTypeCheckFile = 14,
     /**
      * The template type-checking program required changes and had to be updated in an incremental
      * step.
      */
-    UpdateTypeCheckProgram = 16,
+    UpdateTypeCheckProgram = 15,
     /**
      * The compiler was able to prove that a `ts.SourceFile` did not need to be re-emitted.
      */
-    EmitSkipSourceFile = 17,
+    EmitSkipSourceFile = 16,
     /**
      * A `ts.SourceFile` was emitted.
      */
-    EmitSourceFile = 18,
+    EmitSourceFile = 17,
     /**
-     * Tracks the number of `PerfEvent`s, and must appear at the end of the list.
+     * Tracks the number of `PrefEvent`s, and must appear at the end of the list.
      */
-    LAST = 19
+    LAST = 18
 }
 /**
  * Represents a checkpoint during compilation at which the memory usage of the compiler should be

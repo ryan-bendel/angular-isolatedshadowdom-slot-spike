@@ -1,7 +1,7 @@
 'use strict';
 /**
- * @license Angular v22.0.0-next.12
- * (c) 2010-2026 Google LLC. https://angular.dev/
+ * @license Angular v21.1.0-next.0+sha-8f3fdc3-with-local-changes
+ * (c) 2010-2025 Google LLC. https://angular.io/
  * License: MIT
  */
 'use strict';
@@ -10,14 +10,14 @@ var ts = require('typescript');
 require('@angular/compiler-cli');
 var migrations = require('@angular/compiler-cli/private/migrations');
 require('node:path');
-var project_paths = require('./project_paths-D2V-Uh2L.cjs');
+var project_paths = require('./project_paths-DvD50ouC.cjs');
 var compiler = require('@angular/compiler');
-var apply_import_manager = require('./apply_import_manager-CxA_YYgB.cjs');
-var index = require('./index-DcezkXLN.cjs');
+var apply_import_manager = require('./apply_import_manager-1Zs_gpB6.cjs');
+var index = require('./index-B7I9sIUx.cjs');
 require('@angular-devkit/core');
 require('node:path/posix');
 require('@angular-devkit/schematics');
-require('./project_tsconfig_paths-DkkMibv-.cjs');
+require('./project_tsconfig_paths-CDVxT6Ov.cjs');
 
 function isOutputDeclarationEligibleForMigration(node) {
     return (node.initializer !== undefined &&

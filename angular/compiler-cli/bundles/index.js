@@ -17,11 +17,11 @@ import {
   isTsDiagnostic,
   performCompilation,
   readConfiguration
-} from "./chunk-PCBAZ6CG.js";
+} from "./chunk-RI7TZYME.js";
 import {
   ConsoleLogger,
   LogLevel
-} from "./chunk-SEJGUMO2.js";
+} from "./chunk-6HOSNZU5.js";
 import {
   DecoratorType,
   DocsExtractor,
@@ -31,48 +31,23 @@ import {
   NgCompiler,
   NgCompilerHost,
   PatchedProgramIncrementalBuildStrategy,
-  TrackedIncrementalBuildStrategy,
   freshCompilationTicket,
-  incrementalFromCompilerTicket,
   incrementalFromStateTicket,
-  isDocEntryWithSourceInfo,
-  resourceChangeTicket
-} from "./chunk-4FTGWWLZ.js";
+  isDocEntryWithSourceInfo
+} from "./chunk-6MNBUZHZ.js";
 import {
   ActivePerfRecorder,
-  InliningMode,
+  ErrorCode,
+  OptimizeFor,
   PerfPhase,
   TsCreateProgramDriver,
   angularJitApplicationTransform,
-  getAngularDecorators,
   getDownlevelDecoratorsTransform,
   getInitializerApiJitTransform,
-  isShim
-} from "./chunk-EK2KQALQ.js";
-import {
-  CompletionKind,
-  Environment,
-  ErrorCode,
-  ExpressionIdentifier,
-  ImportManager,
-  MetaKind,
-  OptimizeFor,
-  PotentialImportKind,
-  PotentialImportMode,
-  Reference,
-  RegistryDomSchemaChecker,
-  SymbolBuilder,
-  SymbolKind,
-  findFirstMatchingNode,
-  getRootDirs,
-  hasExpressionIdentifier,
-  isExternalResource,
-  isFatalDiagnosticError,
   isLocalCompilationDiagnostics,
-  isNamedClassDeclaration,
   ngErrorCode
-} from "./chunk-G6TWEH7Q.js";
-import "./chunk-ZUYMYKXC.js";
+} from "./chunk-6YWQPHFU.js";
+import "./chunk-LS5RJ5CS.js";
 import {
   InvalidFileSystem,
   LogicalFileSystem,
@@ -94,15 +69,15 @@ import {
   resolve,
   setFileSystem,
   toRelativeImport
-} from "./chunk-UTWH365F.js";
+} from "./chunk-JEXAXD23.js";
 import {
   NodeJSFileSystem
-} from "./chunk-KWAGEHJJ.js";
-import "./chunk-IEBNHER4.js";
+} from "./chunk-XYYEESKY.js";
+import "./chunk-G7GFT6BU.js";
 
 // packages/compiler-cli/src/version.js
 import { Version } from "@angular/compiler";
-var VERSION = new Version("22.0.0-next.12");
+var VERSION = new Version("21.1.0-next.0+sha-8f3fdc3-with-local-changes");
 
 // packages/compiler-cli/private/tooling.js
 var GLOBAL_DEFS_FOR_TERSER = {
@@ -204,42 +179,27 @@ var NgTscPlugin = class {
 // packages/compiler-cli/index.ts
 setFileSystem(new NodeJSFileSystem());
 export {
-  CompletionKind,
   ConsoleLogger,
   DEFAULT_ERROR_CODE,
   DecoratorType,
   DocsExtractor,
   EmitFlags,
   EntryType,
-  Environment,
   ErrorCode,
-  ExpressionIdentifier,
   GLOBAL_DEFS_FOR_TERSER,
   GLOBAL_DEFS_FOR_TERSER_WITH_AOT,
-  ImportManager,
-  InliningMode,
   InvalidFileSystem,
   LogLevel,
   LogicalFileSystem,
   LogicalProjectPath,
   MemberTags,
   MemberType,
-  MetaKind,
-  NgCompiler,
   NgTscPlugin,
   NgtscCompilerHost,
   NgtscProgram,
   NodeJSFileSystem,
   OptimizeFor,
-  PerfPhase,
-  PotentialImportKind,
-  PotentialImportMode,
-  Reference,
-  RegistryDomSchemaChecker,
   SOURCE,
-  SymbolBuilder,
-  SymbolKind,
-  TrackedIncrementalBuildStrategy,
   UNKNOWN_ERROR_CODE,
   VERSION,
   absoluteFrom,
@@ -254,26 +214,16 @@ export {
   defaultGatherDiagnostics,
   dirname,
   exitCodeFromResult,
-  findFirstMatchingNode,
   formatDiagnostics,
-  freshCompilationTicket,
-  getAngularDecorators,
   getDownlevelDecoratorsTransform,
   getFileSystem,
   getInitializerApiJitTransform,
-  getRootDirs,
   getSourceFileOrError,
-  hasExpressionIdentifier,
-  incrementalFromCompilerTicket,
   isDocEntryWithSourceInfo,
-  isExternalResource,
-  isFatalDiagnosticError,
   isLocalCompilationDiagnostics,
   isLocalRelativePath,
-  isNamedClassDeclaration,
   isRoot,
   isRooted,
-  isShim,
   isTsDiagnostic,
   join,
   ngErrorCode,
@@ -282,7 +232,6 @@ export {
   relative,
   relativeFrom,
   resolve,
-  resourceChangeTicket,
   setFileSystem,
   toRelativeImport
 };
@@ -293,4 +242,3 @@ export {
  * Use of this source code is governed by an MIT-style license that can be
  * found in the LICENSE file at https://angular.dev/license
  */
-//# sourceMappingURL=index.js.map

@@ -1,20 +1,20 @@
 /**
- * @license Angular v22.0.0-next.12
- * (c) 2010-2026 Google LLC. https://angular.dev/
+ * @license Angular v21.1.0-next.0+sha-8f3fdc3-with-local-changes
+ * (c) 2010-2025 Google LLC. https://angular.dev/
  * License: MIT
  */
 
-import { Subscription } from 'rxjs';
-import { inject as inject$1, ErrorHandler, NgZone, EnvironmentInjector, CONTAINER_HEADER_OFFSET, InjectionToken, NoopNgZone, PendingTasksInternal, ZONELESS_ENABLED, ChangeDetectionScheduler, EffectScheduler, stringify, getInjectableDef, resolveForwardRef, NG_COMP_DEF, NG_DIR_DEF, NG_PIPE_DEF, NG_INJ_DEF, NG_MOD_DEF, ENVIRONMENT_INITIALIZER, INTERNAL_APPLICATION_ERROR_HANDLER, Injector, isEnvironmentProviders, runInInjectionContext, getComponentDef as getComponentDef$1 } from './_pending_tasks-chunk.mjs';
 import * as i0 from '@angular/core';
-import { Injectable, DeferBlockState, triggerResourceLoading, renderDeferBlockState, getDeferBlocks, DeferBlockBehavior, getDebugNode, RendererFactory2, ApplicationRef, Pipe, Directive, Component, NgModule, ReflectionCapabilities, depsTracker, isComponentDefPendingResolution, resolveComponentResources, NgModuleRef, ApplicationInitStatus, LOCALE_ID, DEFAULT_LOCALE_ID, setLocaleId, ComponentFactory, getAsyncClassMetadataFn, compileComponent, compileDirective, compilePipe, patchComponentDefWithScope, compileNgModuleDefs, clearResolutionOfComponentResourcesQueue, restoreComponentResolutionQueue, provideZonelessChangeDetectionInternal, Compiler, DEFER_BLOCK_CONFIG, ANIMATIONS_DISABLED, COMPILER_OPTIONS, transitiveScopesFor, generateStandaloneInDeclarationsError, NgModuleFactory, resetCompiledComponents, ɵsetUnknownElementStrictMode as _setUnknownElementStrictMode, ɵsetUnknownPropertyStrictMode as _setUnknownPropertyStrictMode, ɵgetUnknownElementStrictMode as _getUnknownElementStrictMode, ɵgetUnknownPropertyStrictMode as _getUnknownPropertyStrictMode, inferTagNameFromDefinition, flushModuleScopingQueueAsMuchAsPossible, setAllowDuplicateNgModuleIdsForTest } from './_debug_node-chunk.mjs';
+import { Injectable, DeferBlockState, triggerResourceLoading, renderDeferBlockState, getDeferBlocks, DeferBlockBehavior, ApplicationRef, getDebugNode, RendererFactory2, Directive, Component, Pipe, NgModule, ReflectionCapabilities, depsTracker, isComponentDefPendingResolution, resolveComponentResources, NgModuleRef, ApplicationInitStatus, LOCALE_ID, DEFAULT_LOCALE_ID, setLocaleId, ComponentFactory, getAsyncClassMetadataFn, compileComponent, compileDirective, compilePipe, patchComponentDefWithScope, compileNgModuleDefs, clearResolutionOfComponentResourcesQueue, restoreComponentResolutionQueue, provideZonelessChangeDetectionInternal, COMPILER_OPTIONS, generateStandaloneInDeclarationsError, transitiveScopesFor, Compiler, DEFER_BLOCK_CONFIG, ANIMATIONS_DISABLED, NgModuleFactory, ModuleWithComponentFactories, resetCompiledComponents, ɵsetUnknownElementStrictMode as _setUnknownElementStrictMode, ɵsetUnknownPropertyStrictMode as _setUnknownPropertyStrictMode, ɵgetUnknownElementStrictMode as _getUnknownElementStrictMode, ɵgetUnknownPropertyStrictMode as _getUnknownPropertyStrictMode, inferTagNameFromDefinition, flushModuleScopingQueueAsMuchAsPossible, setAllowDuplicateNgModuleIdsForTest } from './_debug_node-chunk.mjs';
+import { Subscription } from 'rxjs';
+import { inject as inject$1, NgZone, EnvironmentInjector, ErrorHandler, CONTAINER_HEADER_OFFSET, InjectionToken, NoopNgZone, PendingTasksInternal, ZONELESS_ENABLED, ChangeDetectionScheduler, EffectScheduler, stringify, getInjectableDef, resolveForwardRef, NG_COMP_DEF, NG_DIR_DEF, NG_PIPE_DEF, NG_INJ_DEF, NG_MOD_DEF, ENVIRONMENT_INITIALIZER, Injector, isEnvironmentProviders, INTERNAL_APPLICATION_ERROR_HANDLER, runInInjectionContext, getComponentDef as getComponentDef$1 } from './_untracked-chunk.mjs';
 import { ResourceLoader } from '@angular/compiler';
 import './_effect-chunk.mjs';
-import './_not_found-chunk.mjs';
 import '@angular/core/primitives/signals';
-import '@angular/core/primitives/di';
 import 'rxjs/operators';
 import './_attribute-chunk.mjs';
+import './_not_found-chunk.mjs';
+import '@angular/core/primitives/di';
 
 function waitForAsync(fn) {
   const _Zone = typeof Zone !== 'undefined' ? Zone : null;
@@ -447,12 +447,6 @@ class OverrideResolver {
       this.addOverride(type, override);
     });
   }
-  getOverrides(type) {
-    return this.overrides.get(type) || null;
-  }
-  hasOverrides(type) {
-    return this.overrides.has(type);
-  }
   getAnnotation(type) {
     const annotations = reflection.annotations(type);
     for (let i = annotations.length - 1; i >= 0; i--) {
@@ -610,9 +604,6 @@ class TestBedCompiler {
     this.resolvers.pipe.addOverride(pipe, override);
     this.pendingPipes.add(pipe);
   }
-  hasComponentOverrides(type) {
-    return this.resolvers.component.hasOverrides(type);
-  }
   verifyNoStandaloneFlagOverrides(type, override) {
     if (override.add?.hasOwnProperty('standalone') || override.set?.hasOwnProperty('standalone') || override.remove?.hasOwnProperty('standalone')) {
       throw new Error(`An override for the ${type.name} class has the \`standalone\` flag. ` + `Changing the \`standalone\` flag via TestBed overrides is not supported.`);
@@ -753,40 +744,8 @@ class TestBedCompiler {
         throw new Error(`Component '${declaration.name}' has unresolved metadata. ` + `Please call \`await TestBed.compileComponents()\` before running this test.`);
       }
       needsAsyncResources = needsAsyncResources || isComponentDefPendingResolution(declaration);
-      let metadata = this.resolvers.component.resolve(declaration);
+      const metadata = this.resolvers.component.resolve(declaration);
       if (metadata === null) {
-        if (this.resolvers.component.hasOverrides(declaration)) {
-          const componentDef = getComponentDef(declaration);
-          if (componentDef) {
-            const overrider = new MetadataOverrider();
-            metadata = new Component({
-              selector: componentDef.selectors[0][0],
-              template: componentDef.template,
-              standalone: componentDef.standalone
-            });
-            const overrides = this.resolvers.component.getOverrides(declaration);
-            if (overrides) {
-              overrides.forEach(override => {
-                metadata = overrider.overrideMetadata(Component, metadata, override);
-              });
-            }
-            if (metadata.providers) {
-              const providers = metadata.providers;
-              const providersResolver = (ndef, processProvidersFn) => {
-                return processProvidersFn ? processProvidersFn(providers) : providers;
-              };
-              componentDef.providersResolver = providersResolver;
-            }
-            if (metadata.viewProviders) {
-              const viewProviders = metadata.viewProviders;
-              const viewProvidersResolver = (ndef, processProvidersFn) => {
-                return processProvidersFn ? processProvidersFn(viewProviders) : viewProviders;
-              };
-              componentDef.viewProvidersResolver = viewProvidersResolver;
-            }
-            return;
-          }
-        }
         throw invalidTypeError(declaration.name, 'Component');
       }
       this.maybeStoreNgDef(NG_COMP_DEF, declaration);
@@ -1161,23 +1120,14 @@ class TestBedCompiler {
   }
   patchDefWithProviderOverrides(declaration, field) {
     const def = declaration[field];
-    if (!def) {
-      return;
-    }
-    if (def.viewProvidersResolver) {
+    if (def && def.providersResolver) {
       this.maybeStoreNgDef(field, declaration);
-      const viewProvidersResolver = def.viewProvidersResolver;
-      this.storeFieldOfDefOnType(declaration, field, 'viewProvidersResolver');
-      def.viewProvidersResolver = ngDef => viewProvidersResolver(ngDef, this.processProviderOverrides);
-    }
-    if (def.providersResolver) {
-      this.maybeStoreNgDef(field, declaration);
-      const providersResolver = def.providersResolver;
+      const resolver = def.providersResolver;
+      const processProvidersFn = providers => this.getOverriddenProviders(providers);
       this.storeFieldOfDefOnType(declaration, field, 'providersResolver');
-      def.providersResolver = ngDef => providersResolver(ngDef, this.processProviderOverrides);
+      def.providersResolver = ngDef => resolver(ngDef, processProvidersFn);
     }
   }
-  processProviderOverrides = providers => this.getOverriddenProviders(providers);
 }
 function initResolvers() {
   return {
@@ -1261,6 +1211,16 @@ class R3TestCompiler {
     await this.testBed._compileNgModuleAsync(moduleType);
     return new NgModuleFactory(moduleType);
   }
+  compileModuleAndAllComponentsSync(moduleType) {
+    const ngModuleFactory = this.compileModuleSync(moduleType);
+    const componentFactories = this.testBed._getComponentFactories(moduleType);
+    return new ModuleWithComponentFactories(ngModuleFactory, componentFactories);
+  }
+  async compileModuleAndAllComponentsAsync(moduleType) {
+    const ngModuleFactory = await this.compileModuleAsync(moduleType);
+    const componentFactories = this.testBed._getComponentFactories(moduleType);
+    return new ModuleWithComponentFactories(ngModuleFactory, componentFactories);
+  }
   clearCache() {}
   clearCacheFor(type) {}
   getModuleId(moduleType) {
@@ -1335,9 +1295,6 @@ class TestBedImpl {
   }
   static createComponent(component, options) {
     return TestBedImpl.INSTANCE.createComponent(component, options);
-  }
-  static getLastFixture() {
-    return TestBedImpl.INSTANCE.getLastFixture();
   }
   static resetTestingModule() {
     return TestBedImpl.INSTANCE.resetTestingModule();
@@ -1494,10 +1451,7 @@ class TestBedImpl {
   }
   createComponent(type, options) {
     if (getAsyncClassMetadataFn(type)) {
-      const isCompiled = !!getComponentDef$1(type);
-      if (!isCompiled) {
-        throw new Error(`Component '${type.name}' has unresolved metadata. ` + `Please call \`await TestBed.compileComponents()\` before running this test.`);
-      }
+      throw new Error(`Component '${type.name}' has unresolved metadata. ` + `Please call \`await TestBed.compileComponents()\` before running this test.`);
     }
     const testComponentRenderer = this.inject(TestComponentRenderer);
     const shouldInferTagName = options?.inferTagName ?? this._instanceInferTagName ?? false;
@@ -1517,12 +1471,6 @@ class TestBedImpl {
     const fixture = ngZone ? ngZone.run(initComponent) : initComponent();
     this._activeFixtures.push(fixture);
     return fixture;
-  }
-  getLastFixture() {
-    if (this._activeFixtures.length === 0) {
-      throw new Error('No fixture has been created yet.');
-    }
-    return this._activeFixtures[this._activeFixtures.length - 1];
   }
   get compiler() {
     if (this._compiler === null) {
@@ -1666,7 +1614,7 @@ class FakeNavigation {
   navigateEvent = null;
   traversalQueue = new Map();
   nextTraversal = Promise.resolve();
-  propsectiveTraversalDestinations = [];
+  prospectiveEntryIndex = 0;
   synchronousTraversals = false;
   canSetInitialEntry = true;
   eventTarget;
@@ -1695,7 +1643,7 @@ class FakeNavigation {
         return new EventTarget();
       }
     };
-    this._window = doc.defaultView ?? this.createEventTarget();
+    this._window = document.defaultView ?? this.createEventTarget();
     this.eventTarget = this.createEventTarget();
     this.setInitialEntryForTesting(startURL);
   }
@@ -1827,7 +1775,7 @@ class FakeNavigation {
       index: entry.index,
       sameDocument: entry.sameDocument
     });
-    this.propsectiveTraversalDestinations.push(entry.index);
+    this.prospectiveEntryIndex = entry.index;
     const result = new InternalNavigationResult(this);
     this.traversalQueue.set(entry.key, result);
     this.runTraversal(() => {
@@ -1880,11 +1828,11 @@ class FakeNavigation {
     return this.traverseTo(entry.key, options);
   }
   go(direction) {
-    const targetIndex = (this.propsectiveTraversalDestinations[this.propsectiveTraversalDestinations.length - 1] ?? this.currentEntryIndex) + direction;
+    const targetIndex = this.prospectiveEntryIndex + direction;
     if (targetIndex >= this.entriesArr.length || targetIndex < 0) {
       return;
     }
-    this.propsectiveTraversalDestinations.push(targetIndex);
+    this.prospectiveEntryIndex = targetIndex;
     this.runTraversal(() => {
       if (targetIndex >= this.entriesArr.length || targetIndex < 0) {
         return;
@@ -1917,7 +1865,6 @@ class FakeNavigation {
   runTraversal(traversal) {
     if (this.synchronousTraversals) {
       traversal();
-      this.propsectiveTraversalDestinations.shift();
       return;
     }
     this.nextTraversal = this.nextTraversal.then(() => {
@@ -1925,7 +1872,6 @@ class FakeNavigation {
         setTimeout(() => {
           resolve();
           traversal();
-          this.propsectiveTraversalDestinations.shift();
         });
       });
     });
@@ -2003,7 +1949,7 @@ class FakeNavigation {
       }
     } else if (navigationType === 'push') {
       this.currentEntryIndex++;
-      this.propsectiveTraversalDestinations = [];
+      this.prospectiveEntryIndex = this.currentEntryIndex;
       disposedNHEs.push(...this.entriesArr.splice(this.currentEntryIndex));
     } else if (navigationType === 'replace') {
       disposedNHEs.push(oldCurrentNHE);
@@ -2250,7 +2196,9 @@ function dispatchNavigateEvent({
     }
     navigation.transition?.committedResolve();
     const promisesList = handlers.map(handler => handler());
-    promisesList.push(result.committed);
+    if (promisesList.length === 0) {
+      promisesList.push(Promise.resolve());
+    }
     Promise.all(promisesList).then(() => {
       if (result.signal.aborted) {
         return;
@@ -2296,7 +2244,7 @@ function dispatchNavigateEvent({
         event.abort(new DOMException('Cannot create transition without a currentEntry for intercepted navigation.', 'InvalidStateError'));
         return;
       }
-      const transition = new InternalNavigationTransition(navigation.currentEntry, event.destination, navigationType);
+      const transition = new InternalNavigationTransition(navigation.currentEntry, navigationType);
       navigation.transition = transition;
       transition.finished.catch(() => {});
       transition.committed.catch(() => {});
@@ -2440,7 +2388,6 @@ function isHashChange(from, to) {
 }
 class InternalNavigationTransition {
   from;
-  to;
   navigationType;
   finished;
   committed;
@@ -2448,9 +2395,8 @@ class InternalNavigationTransition {
   finishedReject;
   committedResolve;
   committedReject;
-  constructor(from, to, navigationType) {
+  constructor(from, navigationType) {
     this.from = from;
-    this.to = to;
     this.navigationType = navigationType;
     this.finished = new Promise((resolve, reject) => {
       this.finishedReject = reject;
