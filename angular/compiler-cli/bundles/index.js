@@ -4,16 +4,8 @@
     
 import {
   DEFAULT_ERROR_CODE,
-  DecoratorType,
-  DocsExtractor,
   EmitFlags,
-  EntryType,
-  MemberTags,
-  MemberType,
-  NgCompiler,
-  NgCompilerHost,
   NgtscProgram,
-  PatchedProgramIncrementalBuildStrategy,
   SOURCE,
   UNKNOWN_ERROR_CODE,
   calcProjectFileAndBasePath,
@@ -22,32 +14,40 @@ import {
   defaultGatherDiagnostics,
   exitCodeFromResult,
   formatDiagnostics,
-  freshCompilationTicket,
-  incrementalFromStateTicket,
-  isDocEntryWithSourceInfo,
   isTsDiagnostic,
   performCompilation,
   readConfiguration
-} from "./chunk-7VOUAVNT.js";
+} from "./chunk-ZLAPH6C6.js";
 import {
   ConsoleLogger,
   LogLevel
 } from "./chunk-6HOSNZU5.js";
 import {
-  angularJitApplicationTransform,
-  getDownlevelDecoratorsTransform,
-  getInitializerApiJitTransform
-} from "./chunk-V5ZSC2RA.js";
+  DecoratorType,
+  DocsExtractor,
+  EntryType,
+  MemberTags,
+  MemberType,
+  NgCompiler,
+  NgCompilerHost,
+  PatchedProgramIncrementalBuildStrategy,
+  freshCompilationTicket,
+  incrementalFromStateTicket,
+  isDocEntryWithSourceInfo
+} from "./chunk-WHLBPJ5G.js";
 import {
   ActivePerfRecorder,
   ErrorCode,
   OptimizeFor,
   PerfPhase,
   TsCreateProgramDriver,
+  angularJitApplicationTransform,
+  getDownlevelDecoratorsTransform,
+  getInitializerApiJitTransform,
   isLocalCompilationDiagnostics,
   ngErrorCode
-} from "./chunk-VLSHCXMZ.js";
-import "./chunk-I2BHWRAU.js";
+} from "./chunk-CBX4222M.js";
+import "./chunk-LS5RJ5CS.js";
 import {
   InvalidFileSystem,
   LogicalFileSystem,
@@ -69,7 +69,7 @@ import {
   resolve,
   setFileSystem,
   toRelativeImport
-} from "./chunk-GWZQLAGK.js";
+} from "./chunk-JEXAXD23.js";
 import {
   NodeJSFileSystem
 } from "./chunk-XYYEESKY.js";

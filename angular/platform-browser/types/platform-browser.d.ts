@@ -1,5 +1,5 @@
 /**
- * @license Angular v21.1.0-next.0+sha-60acf6d-with-local-changes
+ * @license Angular v0.0.0
  * (c) 2010-2025 Google LLC. https://angular.dev/
  * License: MIT
  */
@@ -283,64 +283,32 @@ declare class SharedStylesHost implements OnDestroy {
     private readonly appId;
     private readonly nonce?;
     /**
-     * Provides usage information for active inline style content and associated HTML <style> elements per host.
+     * Provides usage information for active inline style content and associated HTML <style> elements.
      * Embedded styles typically originate from the `styles` metadata of a rendered component.
      */
     private readonly inline;
     /**
-     * Provides usage information for active external style URLs and the associated HTML <link> elements per host.
+     * Provides usage information for active external style URLs and the associated HTML <link> elements.
      * External styles typically originate from the `ɵɵExternalStylesFeature` of a rendered component.
      */
     private readonly external;
     /**
      * Set of host DOM nodes that will have styles attached.
      */
-    private readonly standardShadowHosts;
-    private readonly isolatedShadowRoots;
+    private readonly hosts;
     constructor(doc: Document, appId: string, nonce?: string | null | undefined, platformId?: object);
     /**
      * Adds embedded styles to the DOM via HTML `style` elements.
-     *
-     * Modified to support IsolatedShadowDom by accepting a specific target shadow root.
-     * This ensures styles are only added where they're actually needed rather than broadcasting
-     * to all active shadow roots.
-     *
      * @param styles An array of style content strings.
-     * @param urls An optional array of external stylesheet URL strings.
-     * @param shadowRoot Optional shadow root to add styles to. If provided, styles go only to this shadow root.
-     *                   If not provided, styles go to document head and all standard shadow DOM hosts.
      */
-    addStyles(styles: string[], urls?: string[], shadowRoot?: ShadowRoot): void;
+    addStyles(styles: string[], urls?: string[]): void;
     /**
      * Removes embedded styles from the DOM that were added as HTML `style` elements.
      * @param styles An array of style content strings.
-     * @param urls An optional array of external stylesheet URL strings to remove.
-     * @param shadowRoot Optional shadow root to remove styles from (for IsolatedShadowDom).
      */
-    removeStyles(styles: string[], urls?: string[], shadowRoot?: ShadowRoot): void;
-    /**
-     * Handle timing issues with projected components. When adding styles to an
-     * IsolatedShadowDom shadow root, we check if the same styles were previously added to doc.head
-     * due to timing issues (renderer creation before DOM attachment). If so, we clean up the
-     * incorrect doc.head styles to prevent duplication.
-     */
-    protected addUsage<T extends HTMLElement>(value: string, usagesMap: Map<ShadowRoot | HTMLHeadElement, Map<string, UsageRecord<T>>>, creator: (value: string, doc: Document) => T, targetShadowRoot?: ShadowRoot): void;
-    /**
-     * Helper method that handles adding styles to a specific target container
-     * while managing usage tracking and deduplication.
-     */
-    private addUsageToTarget;
-    /**
-     * Removal logic to match the new precise targeting approach.
-     * Previously removed styles from all active shadow roots, now removes only from
-     * the specific target. This prevents accidental removal of styles from unrelated
-     * IsolatedShadowDom components.
-     */
-    protected removeUsage<T extends HTMLElement>(value: string, usagesMap: Map<ShadowRoot | HTMLHeadElement, Map<string, UsageRecord<T>>>, targetShadowRoot?: ShadowRoot): void;
-    /**
-     * Helper method for removing styles from a specific target container.
-     */
-    private removeUsageFromTarget;
+    removeStyles(styles: string[], urls?: string[]): void;
+    protected addUsage<T extends HTMLElement>(value: string, usages: Map<string, UsageRecord<T>>, creator: (value: string, doc: Document) => T): void;
+    protected removeUsage<T extends HTMLElement>(value: string, usages: Map<string, UsageRecord<T>>): void;
     ngOnDestroy(): void;
     /**
      * Adds a host node to the set of style hosts and adds all existing style usage to
@@ -351,55 +319,8 @@ declare class SharedStylesHost implements OnDestroy {
     addHost(hostNode: Node): void;
     removeHost(hostNode: Node): void;
     private addElement;
-    addShadowRoot(shadowRoot: ShadowRoot): void;
-    removeShadowRoot(shadowRoot: ShadowRoot): void;
     static ɵfac: i0.ɵɵFactoryDeclaration<SharedStylesHost, [null, null, { optional: true; }, null]>;
     static ɵprov: i0.ɵɵInjectableDeclaration<SharedStylesHost>;
-}
-
-/**
- * Service that tracks active shadow DOM contexts and determines where styles should be applied
- * for IsolatedShadowDom encapsulation.
- */
-declare class IsolatedStyleScopeService {
-    private isolatedShadowRoots;
-    private standardShadowRoots;
-    registerIsolatedShadowRoot(shadowRoot: ShadowRoot): void;
-    registerStandardShadowRoot(shadowRoot: ShadowRoot): void;
-    deregisterIsolatedShadowRoot(shadowRoot: ShadowRoot): void;
-    deregisterStandardShadowRoot(shadowRoot: ShadowRoot): void;
-    /**
-     * Determines where styles should be applied by checking the shadow DOM context.
-     * Uses Angular's LView hierarchy combined with DOM checks for robustness.
-     */
-    determineStyleTargets(element: HTMLElement): ShadowRoot[];
-    /**
-     * Finds shadow root hosts using Angular's LView hierarchy.
-     *
-     * Note: With IsolatedShadowDom, ng-content projection is disabled and native <slot>
-     * elements are used instead. This means projected content stays in the light DOM,
-     * so we only need to check the LView hierarchy - no DOM walking required.
-     */
-    private findShadowRootViaLView;
-    /**
-     * Checks if the given element is a shadow root host and returns appropriate shadow roots.
-     */
-    private checkIfShadowRootHost;
-    /**
-     * Returns the appropriate shadow roots based on whether it's isolated or standard.
-     */
-    private getShadowRootsForContext;
-    private isRegisteredShadowRoot;
-    /**
-     * Check if a shadow root is registered as an isolated shadow root
-     */
-    isIsolatedShadowRoot(shadowRoot: ShadowRoot): boolean;
-    /**
-     * Check if a shadow root is registered as a standard shadow root
-     */
-    isStandardShadowRoot(shadowRoot: ShadowRoot): boolean;
-    static ɵfac: i0.ɵɵFactoryDeclaration<IsolatedStyleScopeService, never>;
-    static ɵprov: i0.ɵɵInjectableDeclaration<IsolatedStyleScopeService>;
 }
 
 /**
@@ -419,11 +340,10 @@ declare class DomRendererFactory2 implements RendererFactory2, OnDestroy {
     readonly ngZone: NgZone;
     private readonly nonce;
     private readonly tracingService;
-    private readonly styleScopeService;
     private readonly rendererByCompId;
     private readonly defaultRenderer;
     private readonly platformIsServer;
-    constructor(eventManager: EventManager, sharedStylesHost: SharedStylesHost, appId: string, removeStylesOnCompDestroy: boolean, doc: Document, ngZone: NgZone, nonce: string | null | undefined, tracingService: (_TracingService<_TracingSnapshot> | null) | undefined, styleScopeService: IsolatedStyleScopeService);
+    constructor(eventManager: EventManager, sharedStylesHost: SharedStylesHost, appId: string, removeStylesOnCompDestroy: boolean, doc: Document, ngZone: NgZone, nonce?: string | null, tracingService?: _TracingService<_TracingSnapshot> | null);
     createRenderer(element: any, type: RendererType2 | null): Renderer2;
     private getOrCreateRenderer;
     ngOnDestroy(): void;
@@ -432,7 +352,7 @@ declare class DomRendererFactory2 implements RendererFactory2, OnDestroy {
      * @param componentId ID of the component that is being replaced.
      */
     protected componentReplaced(componentId: string): void;
-    static ɵfac: i0.ɵɵFactoryDeclaration<DomRendererFactory2, [null, null, null, null, null, null, null, { optional: true; }, null]>;
+    static ɵfac: i0.ɵɵFactoryDeclaration<DomRendererFactory2, [null, null, null, null, null, null, null, { optional: true; }]>;
     static ɵprov: i0.ɵɵInjectableDeclaration<DomRendererFactory2>;
 }
 
@@ -949,7 +869,7 @@ declare const enum RuntimeErrorCode {
     TESTABILITY_NOT_FOUND = 5103,
     ROOT_NODE_NOT_FOUND = -5104,
     UNEXPECTED_SYNTHETIC_PROPERTY = 5105,
-    SHADOWDOM_NOT_SUPPORTED_IN_SSR = 5106,
+    EXPERIMENTAL_ISOLATED_SHADOW_DOM_UNSUPPORTED_ON_SERVER = 5106,
     SANITIZATION_UNSAFE_SCRIPT = 5200,
     SANITIZATION_UNSAFE_RESOURCE_URL = 5201,
     SANITIZATION_UNEXPECTED_CTX = 5202,
@@ -967,5 +887,5 @@ declare const enum RuntimeErrorCode {
  */
 declare const VERSION: Version;
 
-export { By, DomSanitizer, EVENT_MANAGER_PLUGINS, EventManager, EventManagerPlugin, HAMMER_GESTURE_CONFIG, HAMMER_LOADER, HammerGestureConfig, HammerModule, HydrationFeatureKind, Meta, REMOVE_STYLES_ON_COMPONENT_DESTROY, Title, VERSION, disableDebugTools, enableDebugTools, provideClientHydration, withEventReplay, withHttpTransferCacheOptions, withI18nSupport, withIncrementalHydration, withNoHttpTransferCache, BrowserDomAdapter as ɵBrowserDomAdapter, BrowserGetTestability as ɵBrowserGetTestability, DomEventsPlugin as ɵDomEventsPlugin, DomRendererFactory2 as ɵDomRendererFactory2, DomSanitizerImpl as ɵDomSanitizerImpl, HammerGesturesPlugin as ɵHammerGesturesPlugin, KeyEventsPlugin as ɵKeyEventsPlugin, RuntimeErrorCode as ɵRuntimeErrorCode, SharedStylesHost as ɵSharedStylesHost, IsolatedStyleScopeService as ɵStyleScopeService };
+export { By, DomSanitizer, EVENT_MANAGER_PLUGINS, EventManager, EventManagerPlugin, HAMMER_GESTURE_CONFIG, HAMMER_LOADER, HammerGestureConfig, HammerModule, HydrationFeatureKind, Meta, REMOVE_STYLES_ON_COMPONENT_DESTROY, Title, VERSION, disableDebugTools, enableDebugTools, provideClientHydration, withEventReplay, withHttpTransferCacheOptions, withI18nSupport, withIncrementalHydration, withNoHttpTransferCache, BrowserDomAdapter as ɵBrowserDomAdapter, BrowserGetTestability as ɵBrowserGetTestability, DomEventsPlugin as ɵDomEventsPlugin, DomRendererFactory2 as ɵDomRendererFactory2, DomSanitizerImpl as ɵDomSanitizerImpl, HammerGesturesPlugin as ɵHammerGesturesPlugin, KeyEventsPlugin as ɵKeyEventsPlugin, RuntimeErrorCode as ɵRuntimeErrorCode, SharedStylesHost as ɵSharedStylesHost };
 export type { HammerLoader, HydrationFeature, MetaDefinition, SafeHtml, SafeResourceUrl, SafeScript, SafeStyle, SafeUrl, SafeValue };
