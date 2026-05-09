@@ -5,43 +5,45 @@
 import {
   DiagnosticCategoryLabel,
   NgCompiler
-} from "../chunk-WHLBPJ5G.js";
+} from "../chunk-4FTGWWLZ.js";
 import {
   CompilationMode,
-  DtsMetadataReader,
   DynamicValue,
-  FatalDiagnosticError,
-  ImportManager,
   PartialEvaluator,
-  PotentialImportKind,
-  PotentialImportMode,
-  Reference,
-  ReferenceEmitKind,
-  ReferenceEmitter,
   StaticInterpreter,
-  SymbolKind,
-  TypeScriptReflectionHost,
   createForwardRefResolver,
   extractDecoratorQueryMetadata,
   extractTemplate,
   findAngularDecorator,
   getAngularDecorators,
-  getRootDirs,
   isShim,
   parseDecoratorInputTransformFunction,
   queryDecoratorNames,
-  reflectObjectLiteral,
   unwrapExpression
-} from "../chunk-CBX4222M.js";
-import "../chunk-LS5RJ5CS.js";
+} from "../chunk-EK2KQALQ.js";
+import {
+  DtsMetadataReader,
+  FatalDiagnosticError,
+  ImportManager,
+  PotentialImportKind,
+  PotentialImportMode,
+  Reference,
+  ReferenceEmitKind,
+  ReferenceEmitter,
+  SymbolKind,
+  TypeScriptReflectionHost,
+  getRootDirs,
+  reflectObjectLiteral
+} from "../chunk-G6TWEH7Q.js";
+import "../chunk-ZUYMYKXC.js";
 import {
   getFileSystem,
   isLocalRelativePath
-} from "../chunk-JEXAXD23.js";
+} from "../chunk-UTWH365F.js";
 import {
   NodeJSFileSystem
-} from "../chunk-XYYEESKY.js";
-import "../chunk-G7GFT6BU.js";
+} from "../chunk-KWAGEHJJ.js";
+import "../chunk-IEBNHER4.js";
 export {
   CompilationMode,
   DiagnosticCategoryLabel,
@@ -81,3 +83,4 @@ export {
  * Use of this source code is governed by an MIT-style license that can be
  * found in the LICENSE file at https://angular.dev/license
  */
+//# sourceMappingURL=migrations.js.map

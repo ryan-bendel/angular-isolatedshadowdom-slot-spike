@@ -4,11 +4,12 @@
     
 import {
   angularJitApplicationTransform
-} from "../chunk-CBX4222M.js";
-import "../chunk-LS5RJ5CS.js";
-import "../chunk-JEXAXD23.js";
-import "../chunk-XYYEESKY.js";
-import "../chunk-G7GFT6BU.js";
+} from "../chunk-EK2KQALQ.js";
+import "../chunk-G6TWEH7Q.js";
+import "../chunk-ZUYMYKXC.js";
+import "../chunk-UTWH365F.js";
+import "../chunk-KWAGEHJJ.js";
+import "../chunk-IEBNHER4.js";
 
 // packages/compiler-cli/private/tooling.ts
 var GLOBAL_DEFS_FOR_TERSER = {
@@ -34,3 +35,4 @@ export {
  * Use of this source code is governed by an MIT-style license that can be
  * found in the LICENSE file at https://angular.dev/license
  */
+//# sourceMappingURL=tooling.js.map

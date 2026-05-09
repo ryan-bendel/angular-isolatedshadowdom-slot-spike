@@ -1,7 +1,7 @@
 'use strict';
 /**
- * @license Angular v0.0.0
- * (c) 2010-2025 Google LLC. https://angular.io/
+ * @license Angular v22.0.0-next.12
+ * (c) 2010-2026 Google LLC. https://angular.dev/
  * License: MIT
  */
 'use strict';
@@ -10,18 +10,18 @@ var ts = require('typescript');
 require('@angular/compiler-cli');
 var migrations = require('@angular/compiler-cli/private/migrations');
 require('node:path');
-var project_paths = require('./project_paths-DvD50ouC.cjs');
+var project_paths = require('./project_paths-D2V-Uh2L.cjs');
 var compiler = require('@angular/compiler');
-var apply_import_manager = require('./apply_import_manager-1Zs_gpB6.cjs');
-var imports = require('./imports-DP72APSx.cjs');
-var parse_html = require('./parse_html-8VLCL37B.cjs');
-var ng_component_template = require('./ng_component_template-Dsuq1Lw7.cjs');
+var apply_import_manager = require('./apply_import_manager-CxA_YYgB.cjs');
+var imports = require('./imports-CKV-ITqD.cjs');
+var parse_html = require('./parse_html-C8eKA9px.cjs');
+var ng_component_template = require('./ng_component_template-DPAF1aEA.cjs');
 require('@angular-devkit/core');
 require('node:path/posix');
 require('@angular-devkit/schematics');
-require('./project_tsconfig_paths-CDVxT6Ov.cjs');
-require('./ng_decorators-DSFlWYQY.cjs');
-require('./property_name-BBwFuqMe.cjs');
+require('./project_tsconfig_paths-DkkMibv-.cjs');
+require('./ng_decorators-IVztR9rk.cjs');
+require('./property_name-BCpALNpZ.cjs');
 
 const ngStyleStr = 'NgStyle';
 const commonModuleStr = '@angular/common';
@@ -115,12 +115,20 @@ function getPropertyRemovalRange(property) {
     }
     const properties = parent.properties;
     const propertyIndex = properties.indexOf(property);
-    const end = property.getEnd();
-    if (propertyIndex < properties.length - 1) {
-        const nextProperty = properties[propertyIndex + 1];
-        return { start: property.getStart(), end: nextProperty.getStart() };
+    if (properties.length === 1) {
+        const sourceFile = property.getSourceFile();
+        let end = property.getEnd();
+        const textAfter = sourceFile.text.substring(end, parent.getEnd());
+        const commaIndex = textAfter.indexOf(',');
+        if (commaIndex !== -1) {
+            end += commaIndex + 1;
+        }
+        return { start: property.getFullStart(), end };
     }
-    return { start: property.getStart(), end };
+    if (propertyIndex === 0) {
+        return { start: property.getFullStart(), end: properties[1].getFullStart() };
+    }
+    return { start: properties[propertyIndex - 1].getEnd(), end: property.getEnd() };
 }
 function calculateImportReplacements(info, sourceFiles, filesToRemoveCommonModule) {
     const importReplacements = {};

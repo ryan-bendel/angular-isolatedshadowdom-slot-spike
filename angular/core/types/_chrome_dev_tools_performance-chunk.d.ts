@@ -1,10 +1,11 @@
 /**
- * @license Angular v0.0.0
- * (c) 2010-2025 Google LLC. https://angular.dev/
+ * @license Angular v22.0.0-next.12
+ * (c) 2010-2026 Google LLC. https://angular.dev/
  * License: MIT
  */
 
 import { SIGNAL } from './_formatter-chunk.js';
+import * as _angular_core from '@angular/core';
 import { EventContract } from './_event_dispatcher-chunk.js';
 
 /** Symbol used distinguish `WritableSignal` from other non-writable signals and functions. */
@@ -237,6 +238,13 @@ type Writable<T> = {
 declare class InjectionToken<T> {
     protected _desc: string;
     readonly ɵprov: unknown;
+    /**
+     * @deprecated The `providedIn: NgModule` or `providedIn:'any'` options are deprecated. Please use the other signature.
+     */
+    constructor(_desc: string, options: {
+        providedIn: Type<any> | 'any';
+        factory: () => T;
+    });
     /**
      * @param _desc   Description for the token,
      *                used only for debugging purposes,
@@ -734,7 +742,7 @@ declare abstract class Injector {
         name?: string;
     }): DestroyableInjector;
     /** @nocollapse */
-    static ɵprov: unknown;
+    static ɵprov: _angular_core.ɵɵInjectableDeclaration<Injector>;
 }
 /**
  * An Injector that the owner can destroy and trigger the DestroyRef.destroy hooks.
@@ -836,14 +844,14 @@ type TimeStampName = string;
 type DevToolsColor = 'primary' | 'primary-light' | 'primary-dark' | 'secondary' | 'secondary-light' | 'secondary-dark' | 'tertiary' | 'tertiary-light' | 'tertiary-dark' | 'error';
 declare global {
     interface Console {
-        timeStamp(label: string, start: TimeStampName, end?: TimeStampName, trackName?: string, trackGroup?: string, color?: DevToolsColor): void;
+        timeStamp(label: string, start: TimeStampName, end?: TimeStampName, trackName?: string, trackGroup?: string, color?: DevToolsColor, detail?: object): void;
     }
 }
 /**
  * Start listening to the Angular's internal performance-related events and route those to the Chrome DevTools performance panel.
  * This enables Angular-specific data visualization when recording a performance profile directly in the Chrome DevTools.
  *
- * Note: integration is enabled in the development mode only, this operation is noop in the production mode.
+ * NOTE: Integration is enabled in the development mode only, this operation is noop in the production mode.
  *
  * @publicApi v21.0
  *

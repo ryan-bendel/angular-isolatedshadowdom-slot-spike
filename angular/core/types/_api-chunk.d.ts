@@ -1,10 +1,10 @@
 /**
- * @license Angular v0.0.0
- * (c) 2010-2025 Google LLC. https://angular.dev/
+ * @license Angular v22.0.0-next.12
+ * (c) 2010-2026 Google LLC. https://angular.dev/
  * License: MIT
  */
 
-import { OutputRef, OutputRefSubscription, DestroyRef, Signal, WritableSignal, ValueEqualityFn, Injector } from './_chrome_dev_tools_performance-chunk.js';
+import { OutputRef, OutputRefSubscription, DestroyRef, Signal, ValueEqualityFn, Injector, WritableSignal } from './_chrome_dev_tools_performance-chunk.js';
 
 /**
  * An `OutputEmitterRef` is created by the `output()` function and can be
@@ -90,6 +90,33 @@ interface OutputOptions {
  */
 declare function output<T = void>(opts?: OutputOptions): OutputEmitterRef<T>;
 
+/** Error thrown when a `Resource` dependency of another resource errors. */
+declare class ResourceDependencyError extends Error {
+    /** The dependency that errored. */
+    readonly dependency: Resource<unknown>;
+    constructor(dependency: Resource<unknown>);
+}
+/**
+ * Special status codes that can be thrown from a resource's `params` or `request` function to
+ * indicate that the resource should transition to that status.
+ */
+declare class ResourceParamsStatus extends Error {
+    private readonly _brand;
+    private constructor();
+    /** Status code that transitions the resource to `idle` status. */
+    static readonly IDLE: ResourceParamsStatus;
+    /** Status code that transitions the resource to `loading` status. */
+    static readonly LOADING: ResourceParamsStatus;
+}
+/** Context received by a resource's `params` or `request` function. */
+interface ResourceParamsContext {
+    /**
+     * Chains the current params off of the value of another resource, returning the value
+     * of the other resource if it is available, or propagating the status to the current resource by
+     * throwing the appropriate status code if the value is not available.
+     */
+    readonly chain: <T>(resource: Resource<T>) => T;
+}
 /**
  * String value capturing the status of a `Resource`.
  *
@@ -111,7 +138,7 @@ declare function output<T = void>(opts?: OutputOptions): OutputEmitterRef<T>;
  *
  * `local` - The resource's value was set locally via `.set()` or `.update()`.
  *
- * @experimental
+ * @publicApi 22.0
  */
 type ResourceStatus = 'idle' | 'error' | 'loading' | 'reloading' | 'resolved' | 'local';
 /**
@@ -121,7 +148,7 @@ type ResourceStatus = 'idle' | 'error' | 'loading' | 'reloading' | 'resolved' | 
  * The usual way of creating a `Resource` is through the `resource` function, but various other APIs
  * may present `Resource` instances to describe their own concepts.
  *
- * @experimental
+ * @publicApi 22.0
  */
 interface Resource<T> {
     /**
@@ -142,6 +169,10 @@ interface Resource<T> {
      */
     readonly isLoading: Signal<boolean>;
     /**
+     * The current state of this resource, represented as a `ResourceSnapshot`.
+     */
+    readonly snapshot: Signal<ResourceSnapshot<T>>;
+    /**
      * Whether this resource has a valid current value.
      *
      * This function is reactive.
@@ -154,7 +185,7 @@ interface Resource<T> {
  *
  * Overwriting the value of a resource sets it to the 'local' state.
  *
- * @experimental
+ * @publicApi 22.0
  */
 interface WritableResource<T> extends Resource<T> {
     readonly value: WritableSignal<T>;
@@ -182,7 +213,7 @@ interface WritableResource<T> extends Resource<T> {
 /**
  * A `WritableResource` created through the `resource` function.
  *
- * @experimental
+ * @publicApi 22.0
  */
 interface ResourceRef<T> extends WritableResource<T> {
     hasValue(this: T extends undefined ? this : never): this is ResourceRef<Exclude<T, undefined>>;
@@ -196,7 +227,7 @@ interface ResourceRef<T> extends WritableResource<T> {
  * Parameter to a `ResourceLoader` which gives the request and other options for the current loading
  * operation.
  *
- * @experimental
+ * @publicApi 22.0
  */
 interface ResourceLoaderParams<R> {
     params: NoInfer<Exclude<R, undefined>>;
@@ -208,19 +239,19 @@ interface ResourceLoaderParams<R> {
 /**
  * Loading function for a `Resource`.
  *
- * @experimental
+ * @publicApi 22.0
  */
 type ResourceLoader<T, R> = (param: ResourceLoaderParams<R>) => PromiseLike<T>;
 /**
  * Streaming loader for a `Resource`.
  *
- * @experimental
+ * @publicApi 22.0
  */
-type ResourceStreamingLoader<T, R> = (param: ResourceLoaderParams<R>) => PromiseLike<Signal<ResourceStreamItem<T>>>;
+type ResourceStreamingLoader<T, R> = (param: ResourceLoaderParams<R>) => Signal<ResourceStreamItem<T>> | PromiseLike<Signal<ResourceStreamItem<T>>> | undefined;
 /**
  * Options to the `resource` function, for creating a resource.
  *
- * @experimental
+ * @publicApi 22.0
  */
 interface BaseResourceOptions<T, R> {
     /**
@@ -229,7 +260,7 @@ interface BaseResourceOptions<T, R> {
      *
      * If a params function isn't provided, the loader won't rerun unless the resource is reloaded.
      */
-    params?: () => R;
+    params?: (ctx: ResourceParamsContext) => R;
     /**
      * The value which will be returned from the resource when a server value is unavailable, such as
      * when the resource is still loading.
@@ -243,11 +274,16 @@ interface BaseResourceOptions<T, R> {
      * Overrides the `Injector` used by `resource`.
      */
     injector?: Injector;
+    /**
+     * Identifier used to cache the resource data in the `TransferState` during server-side rendering and to retrieve it on the client side.
+     * This value value needs to be identical for both the client and server.
+     */
+    id?: string;
 }
 /**
  * Options to the `resource` function, for creating a resource.
  *
- * @experimental
+ * @publicApi 22.0
  */
 interface PromiseResourceOptions<T, R> extends BaseResourceOptions<T, R> {
     /**
@@ -262,7 +298,7 @@ interface PromiseResourceOptions<T, R> extends BaseResourceOptions<T, R> {
 /**
  * Options to the `resource` function, for creating a resource.
  *
- * @experimental
+ * @publicApi 22.0
  */
 interface StreamingResourceOptions<T, R> extends BaseResourceOptions<T, R> {
     /**
@@ -276,7 +312,7 @@ interface StreamingResourceOptions<T, R> extends BaseResourceOptions<T, R> {
     loader?: never;
 }
 /**
- * @experimental
+ * @publicApi 22.0
  */
 type ResourceOptions<T, R> = (PromiseResourceOptions<T, R> | StreamingResourceOptions<T, R>) & {
     /**
@@ -285,13 +321,54 @@ type ResourceOptions<T, R> = (PromiseResourceOptions<T, R> | StreamingResourceOp
     debugName?: string;
 };
 /**
- * @experimental
+ * @publicApi 22.0
  */
 type ResourceStreamItem<T> = {
     value: T;
 } | {
     error: Error;
 };
+/**
+ * An explicit representation of a resource's state.
+ *
+ * @publicApi 22.0
+ * @see [Resource composition with snapshots](guide/signals/resource#resource-composition-with-snapshots)
+ */
+type ResourceSnapshot<T> = {
+    readonly status: 'idle';
+    readonly value: T;
+} | {
+    readonly status: 'loading' | 'reloading';
+    readonly value: T;
+} | {
+    readonly status: 'resolved' | 'local';
+    readonly value: T;
+} | {
+    readonly status: 'error';
+    readonly error: Error;
+};
+/**
+ * Options for `debounced`.
+ *
+ * @see [Debouncing signals with `debounced`](guide/signals/debounced)
+ *
+ * @experimental 22.0
+ */
+interface DebouncedOptions<T> {
+    /** The `Injector` to use for the debounced resource. */
+    injector?: Injector;
+    /** The equality function to use for comparing values. */
+    equal?: ValueEqualityFn<T>;
+}
+/**
+ * Represents the wait condition for item debouncing.
+ * Can be a number of milliseconds or a function that returns a Promise.
+ *
+ * @see [Debouncing signals with `debounced`](guide/signals/debounced)
+ *
+ * @experimental 22.0
+ */
+type DebounceTimer<T> = number | ((value: T, lastValue: ResourceSnapshot<T>) => Promise<void> | void);
 
-export { OutputEmitterRef, getOutputDestroyRef, output };
-export type { BaseResourceOptions, OutputOptions, PromiseResourceOptions, Resource, ResourceLoader, ResourceLoaderParams, ResourceOptions, ResourceRef, ResourceStatus, ResourceStreamItem, ResourceStreamingLoader, StreamingResourceOptions, WritableResource };
+export { OutputEmitterRef, ResourceDependencyError, ResourceParamsStatus, getOutputDestroyRef, output };
+export type { BaseResourceOptions, DebounceTimer, DebouncedOptions, OutputOptions, PromiseResourceOptions, Resource, ResourceLoader, ResourceLoaderParams, ResourceOptions, ResourceParamsContext, ResourceRef, ResourceSnapshot, ResourceStatus, ResourceStreamItem, ResourceStreamingLoader, StreamingResourceOptions, WritableResource };

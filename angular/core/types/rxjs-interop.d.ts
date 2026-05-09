@@ -1,6 +1,6 @@
 /**
- * @license Angular v0.0.0
- * (c) 2010-2025 Google LLC. https://angular.dev/
+ * @license Angular v22.0.0-next.12
+ * (c) 2010-2026 Google LLC. https://angular.dev/
  * License: MIT
  */
 
@@ -9,6 +9,7 @@ import { OutputRef, DestroyRef, Injector, Signal } from './_chrome_dev_tools_per
 import { OutputOptions, BaseResourceOptions, ResourceLoaderParams, ResourceRef } from './_api-chunk.js';
 import './_event_dispatcher-chunk.js';
 import { Observable, MonoTypeOperatorFunction, Subscribable } from 'rxjs';
+import '@angular/core';
 
 /**
  * Declares an Angular output that is using an RxJS observable as a source
@@ -172,7 +173,7 @@ declare function pendingUntilEvent<T>(injector?: Injector): MonoTypeOperatorFunc
 /**
  * Like `ResourceOptions` but uses an RxJS-based `loader`.
  *
- * @experimental
+ * @publicApi 22.0
  */
 interface RxResourceOptions<T, R> extends BaseResourceOptions<T, R> {
     stream: (params: ResourceLoaderParams<R>) => Observable<T>;
@@ -183,7 +184,7 @@ interface RxResourceOptions<T, R> extends BaseResourceOptions<T, R> {
  *
  * @see [Using rxResource for async data](ecosystem/rxjs-interop#using-rxresource-for-async-data)
  *
- * @experimental
+ * @publicApi 22.0
  */
 declare function rxResource<T, R>(opts: RxResourceOptions<T, R> & {
     defaultValue: NoInfer<T>;
@@ -192,7 +193,7 @@ declare function rxResource<T, R>(opts: RxResourceOptions<T, R> & {
  * Like `resource` but uses an RxJS based `loader` which maps the request to an `Observable` of the
  * resource's value.
  *
- * @experimental
+ * @publicApi 22.0
  */
 declare function rxResource<T, R>(opts: RxResourceOptions<T, R>): ResourceRef<T | undefined>;
 

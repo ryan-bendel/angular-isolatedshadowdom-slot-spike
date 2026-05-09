@@ -6,20 +6,21 @@
 import {
   main,
   readCommandLineAndConfiguration
-} from "../../chunk-Y4R5FH2U.js";
+} from "../../chunk-MSLWRSCC.js";
 import {
   EmitFlags
-} from "../../chunk-ZLAPH6C6.js";
-import "../../chunk-WHLBPJ5G.js";
-import "../../chunk-CBX4222M.js";
-import "../../chunk-LS5RJ5CS.js";
+} from "../../chunk-PCBAZ6CG.js";
+import "../../chunk-4FTGWWLZ.js";
+import "../../chunk-EK2KQALQ.js";
+import "../../chunk-G6TWEH7Q.js";
+import "../../chunk-ZUYMYKXC.js";
 import {
   setFileSystem
-} from "../../chunk-JEXAXD23.js";
+} from "../../chunk-UTWH365F.js";
 import {
   NodeJSFileSystem
-} from "../../chunk-XYYEESKY.js";
-import "../../chunk-G7GFT6BU.js";
+} from "../../chunk-KWAGEHJJ.js";
+import "../../chunk-IEBNHER4.js";
 
 // packages/compiler-cli/src/bin/ng_xi18n.ts
 import "reflect-metadata";
@@ -59,3 +60,4 @@ process.exitCode = mainXi18n(args);
  * Use of this source code is governed by an MIT-style license that can be
  * found in the LICENSE file at https://angular.dev/license
  */
+//# sourceMappingURL=ng_xi18n.js.map

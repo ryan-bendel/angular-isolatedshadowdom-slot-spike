@@ -1,18 +1,18 @@
 /**
- * @license Angular v0.0.0
- * (c) 2010-2025 Google LLC. https://angular.dev/
+ * @license Angular v22.0.0-next.12
+ * (c) 2010-2026 Google LLC. https://angular.dev/
  * License: MIT
  */
 
 import { Observable, ReplaySubject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
-import { assertInInjectionContext, inject, DestroyRef, RuntimeError, Injector, effect, untracked, assertNotInReactiveContext, signal, PendingTasks } from './_untracked-chunk.mjs';
-import { getOutputDestroyRef, computed, resource, encapsulateResourceError } from './_resource-chunk.mjs';
+import { assertInInjectionContext, inject, DestroyRef, RuntimeError, effect, Injector, assertNotInReactiveContext, signal, PendingTasks } from './_pending_tasks-chunk.mjs';
+import { getOutputDestroyRef, untracked, computed, resource, encapsulateResourceError } from './_resource-chunk.mjs';
 import './_effect-chunk.mjs';
 import './_not_found-chunk.mjs';
 import '@angular/core/primitives/signals';
 import '@angular/core/primitives/di';
-import './_linked_signal-chunk.mjs';
+import './_untracked-chunk.mjs';
 
 function takeUntilDestroyed(destroyRef) {
   if (!destroyRef) {
@@ -228,7 +228,7 @@ function rxResource(opts) {
         resolve?.(stream);
         resolve = undefined;
       }
-      const streamFn = opts.stream ?? opts.loader;
+      const streamFn = opts.stream;
       if (streamFn === undefined) {
         throw new RuntimeError(990, ngDevMode && `Must provide \`stream\` option.`);
       }
@@ -251,6 +251,9 @@ function rxResource(opts) {
           params.abortSignal.removeEventListener('abort', onAbort);
         }
       });
+      if (resolve === undefined) {
+        return stream;
+      }
       return promise;
     }
   });

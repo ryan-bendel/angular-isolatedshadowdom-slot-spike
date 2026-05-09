@@ -1,11 +1,11 @@
 /**
- * @license Angular v0.0.0
- * (c) 2010-2025 Google LLC. https://angular.dev/
+ * @license Angular v22.0.0-next.12
+ * (c) 2010-2026 Google LLC. https://angular.dev/
  * License: MIT
  */
 
 import * as i0 from '@angular/core';
-import { PlatformRef, Type, ApplicationConfig, ApplicationRef, Provider, StaticProvider } from '@angular/core';
+import { PlatformRef, Type, ApplicationConfig, ApplicationRef, StaticProvider, Provider } from '@angular/core';
 import * as i1 from '@angular/common';
 
 /**
@@ -26,24 +26,22 @@ interface BootstrapContext {
  * guide](guide/components/importing).
  *
  * @usageNotes
- * The root component passed into this function *must* be a standalone one (should have the
- * `standalone: true` flag in the `@Component` decorator config).
+ * The root component passed into this function **must** be a standalone one
  *
  * ```angular-ts
  * @Component({
- *   standalone: true,
  *   template: 'Hello world!'
  * })
- * class RootComponent {}
+ * class Root {}
  *
- * const appRef: ApplicationRef = await bootstrapApplication(RootComponent);
+ * const appRef: ApplicationRef = await bootstrapApplication(Root);
  * ```
  *
  * You can add the list of providers that should be available in the application injector by
  * specifying the `providers` field in an object passed as the second argument:
  *
  * ```ts
- * await bootstrapApplication(RootComponent, {
+ * await bootstrapApplication(Root, {
  *   providers: [
  *     {provide: BACKEND_URL, useValue: 'https://yourdomain.com/api'}
  *   ]
@@ -54,7 +52,7 @@ interface BootstrapContext {
  * existing NgModule (and transitively from all NgModules that it imports):
  *
  * ```ts
- * await bootstrapApplication(RootComponent, {
+ * await bootstrapApplication(Root, {
  *   providers: [
  *     importProvidersFrom(SomeNgModule)
  *   ]
@@ -69,7 +67,7 @@ interface BootstrapContext {
  * ```ts
  * import {provideProtractorTestingSupport} from '@angular/platform-browser';
  *
- * await bootstrapApplication(RootComponent, {providers: [provideProtractorTestingSupport()]});
+ * await bootstrapApplication(Root, {providers: [provideProtractorTestingSupport()]});
  * ```
  *
  * @param rootComponent A reference to a standalone component that should be rendered.
@@ -110,7 +108,9 @@ declare function createApplication(options?: ApplicationConfig, context?: Bootst
  *
  * @publicApi
  */
-declare function provideProtractorTestingSupport(): Provider[];
+declare function provideProtractorTestingSupport(options?: {
+    usePendingTasksForStability?: boolean;
+}): Provider[];
 /**
  * A factory function that returns a `PlatformRef` instance associated with browser service
  * providers.
