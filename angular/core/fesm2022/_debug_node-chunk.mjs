@@ -15995,7 +15995,7 @@ function matchingProjectionSlotIndex(tNode, projectionSlots) {
 function ɵɵprojectionDef(projectionSlots) {
   const componentLView = getLView();
   const componentNode = componentLView[DECLARATION_COMPONENT_VIEW][T_HOST];
-  const componentDef = ngDevMode ? getComponentDef(componentLView[CONTEXT].constructor) : null;
+  const componentDef = getComponentDef(componentLView[CONTEXT].constructor);
   if (componentDef?.encapsulation === ViewEncapsulation.ExperimentalIsolatedShadowDom) {
     throw new RuntimeError(318, ngDevMode && 'ng-content projection is not supported with ViewEncapsulation.ExperimentalIsolatedShadowDom. ' + 'Use native <slot> elements instead. Content will remain in the light DOM and be projected via slots.');
   }

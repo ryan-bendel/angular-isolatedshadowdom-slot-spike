@@ -293,6 +293,15 @@ declare class SharedStylesHost implements _SharedStylesHost, OnDestroy {
      */
     private readonly external;
     /**
+     * Tracks style usage for additional, non-registered hosts such as isolated shadow roots.
+     * These roots must mirror component lifecycle independently from the global registered hosts.
+     */
+    private readonly inlineByHost;
+    /**
+     * Tracks external stylesheet usage for additional, non-registered hosts.
+     */
+    private readonly externalByHost;
+    /**
      * Set of host DOM nodes that will have styles attached.
      */
     private readonly hosts;
@@ -302,12 +311,16 @@ declare class SharedStylesHost implements _SharedStylesHost, OnDestroy {
      * Removes embedded styles from the DOM that were added as HTML `style` elements.
      * @param styles An array of style content strings.
      */
-    removeStyles(styles: string[], urls?: string[]): void;
-    protected addUsage<T extends HTMLElement>(value: string, usages: Map<string, UsageRecord<T>>, creator: (value: string, doc: Document) => T, hostNode?: Node): void;
+    removeStyles(styles: string[], urls?: string[], hostNode?: Node): void;
+    protected addUsage<T extends HTMLElement>(value: string, usages: Map<string, UsageRecord<T>>, creator: (value: string, doc: Document) => T, hostNode?: Node, usageByHost?: Map<Node, Map<string, UsageRecord<T>>>): void;
+    private addUsageToHost;
+    private getHostUsageMap;
     protected removeUsage<T extends HTMLElement>(value: string, usages: Map<string, UsageRecord<T>>): void;
+    private removeUsageFromHost;
     ngOnDestroy(): void;
     addHost(hostNode: Node): void;
     removeHost(hostNode: Node): void;
+    private removeHostUsage;
     private addElement;
     static ɵfac: i0.ɵɵFactoryDeclaration<SharedStylesHost, [null, null, { optional: true; }, null]>;
     static ɵprov: i0.ɵɵInjectableDeclaration<SharedStylesHost>;

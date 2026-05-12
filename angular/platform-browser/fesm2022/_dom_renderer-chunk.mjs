@@ -145,6 +145,16 @@ function removeElements(elements) {
     element.remove();
   }
 }
+function isStyleOrLinkElement(node) {
+  return node.nodeName === 'STYLE' || node.nodeName === 'LINK' && node.rel === 'stylesheet';
+}
+function getStyleInsertionReference(host) {
+  let child = host.firstChild;
+  while (child && isStyleOrLinkElement(child)) {
+    child = child.nextSibling;
+  }
+  return child;
+}
 function createStyleElement(style, doc) {
   const styleElement = doc.createElement('style');
   styleElement.textContent = style;
@@ -181,6 +191,8 @@ class SharedStylesHost {
   nonce;
   inline = new Map();
   external = new Map();
+  inlineByHost = new Map();
+  externalByHost = new Map();
   hosts = new Set();
   constructor(doc, appId, nonce, platformId = {}) {
     this.doc = doc;
@@ -191,33 +203,63 @@ class SharedStylesHost {
   }
   addStyles(styles, urls, hostNode) {
     for (const value of styles) {
-      this.addUsage(value, this.inline, createStyleElement, hostNode);
+      this.addUsage(value, this.inline, createStyleElement, hostNode, this.inlineByHost);
     }
-    urls?.forEach(value => this.addUsage(value, this.external, createLinkElement, hostNode));
+    urls?.forEach(value => this.addUsage(value, this.external, createLinkElement, hostNode, this.externalByHost));
   }
-  removeStyles(styles, urls) {
+  removeStyles(styles, urls, hostNode) {
     for (const value of styles) {
       this.removeUsage(value, this.inline);
+      if (hostNode && !this.hosts.has(hostNode)) {
+        this.removeUsageFromHost(hostNode, value, this.inlineByHost);
+      }
     }
-    urls?.forEach(value => this.removeUsage(value, this.external));
+    urls?.forEach(value => {
+      this.removeUsage(value, this.external);
+      if (hostNode && !this.hosts.has(hostNode)) {
+        this.removeUsageFromHost(hostNode, value, this.externalByHost);
+      }
+    });
   }
-  addUsage(value, usages, creator, hostNode) {
+  addUsage(value, usages, creator, hostNode, usageByHost) {
     const record = usages.get(value);
     if (record) {
       if ((typeof ngDevMode === 'undefined' || ngDevMode) && record.usage === 0) {
         record.elements.forEach(element => element.setAttribute('ng-style-reused', ''));
       }
       record.usage++;
-      if (hostNode && !record.elements.some(element => element.parentNode === hostNode)) {
-        record.elements.push(this.addElement(hostNode, creator(value, this.doc)));
+      if (hostNode && !this.hosts.has(hostNode) && usageByHost) {
+        this.addUsageToHost(hostNode, value, usageByHost, creator);
       }
     } else {
-      const hosts = hostNode && !this.hosts.has(hostNode) ? [...this.hosts, hostNode] : this.hosts;
       usages.set(value, {
         usage: 1,
-        elements: [...hosts].map(host => this.addElement(host, creator(value, this.doc)))
+        elements: [...this.hosts].map(host => this.addElement(host, creator(value, this.doc)))
+      });
+      if (hostNode && !this.hosts.has(hostNode) && usageByHost) {
+        this.addUsageToHost(hostNode, value, usageByHost, creator);
+      }
+    }
+  }
+  addUsageToHost(hostNode, value, usageByHost, creator) {
+    const hostUsages = this.getHostUsageMap(usageByHost, hostNode);
+    const hostRecord = hostUsages.get(value);
+    if (hostRecord) {
+      hostRecord.usage++;
+    } else {
+      hostUsages.set(value, {
+        usage: 1,
+        elements: [this.addElement(hostNode, creator(value, this.doc), true)]
       });
     }
+  }
+  getHostUsageMap(usageByHost, hostNode) {
+    let hostUsages = usageByHost.get(hostNode);
+    if (!hostUsages) {
+      hostUsages = new Map();
+      usageByHost.set(hostNode, hostUsages);
+    }
+    return hostUsages;
   }
   removeUsage(value, usages) {
     const record = usages.get(value);
@@ -229,16 +271,41 @@ class SharedStylesHost {
       }
     }
   }
+  removeUsageFromHost(hostNode, value, usageByHost) {
+    const hostUsages = usageByHost.get(hostNode);
+    const record = hostUsages?.get(value);
+    if (!hostUsages || !record) {
+      return;
+    }
+    record.usage--;
+    if (record.usage <= 0) {
+      removeElements(record.elements);
+      hostUsages.delete(value);
+      if (hostUsages.size === 0) {
+        usageByHost.delete(hostNode);
+      }
+    }
+  }
   ngOnDestroy() {
     for (const [, {
       elements
     }] of [...this.inline, ...this.external]) {
       removeElements(elements);
     }
+    for (const hostUsages of [...this.inlineByHost.values(), ...this.externalByHost.values()]) {
+      for (const [, {
+        elements
+      }] of hostUsages) {
+        removeElements(elements);
+      }
+    }
     this.hosts.clear();
+    this.inlineByHost.clear();
+    this.externalByHost.clear();
   }
   addHost(hostNode) {
     if (this.hosts.has(hostNode)) return;
+    this.removeHostUsage(hostNode);
     this.hosts.add(hostNode);
     for (const [style, {
       elements
@@ -264,15 +331,29 @@ class SharedStylesHost {
       }
       record.elements = remaining;
     }
+    this.removeHostUsage(hostNode);
   }
-  addElement(host, element) {
+  removeHostUsage(hostNode) {
+    for (const usageByHost of [this.inlineByHost, this.externalByHost]) {
+      const hostUsages = usageByHost.get(hostNode);
+      if (hostUsages) {
+        for (const [, {
+          elements
+        }] of hostUsages) {
+          removeElements(elements);
+        }
+        usageByHost.delete(hostNode);
+      }
+    }
+  }
+  addElement(host, element, beforeContent = false) {
     if (this.nonce) {
       element.setAttribute('nonce', this.nonce);
     }
     if (typeof ngServerMode !== 'undefined' && ngServerMode) {
       element.setAttribute(APP_ID_ATTRIBUTE_NAME, this.appId);
     }
-    return host.appendChild(element);
+    return beforeContent ? host.insertBefore(element, getStyleInsertionReference(host)) : host.appendChild(element);
   }
   static ɵfac = i0.ɵɵngDeclareFactory({
     minVersion: "12.0.0",
@@ -350,6 +431,7 @@ const COMPONENT_VARIABLE = '%COMP%';
 const HOST_ATTR = `_nghost-${COMPONENT_VARIABLE}`;
 const CONTENT_ATTR = `_ngcontent-${COMPONENT_VARIABLE}`;
 const ISOLATED_SHADOW_STYLE_HOST = Symbol('ngIsolatedShadowStyleHost');
+const USE_SHADOW_ROOT_AS_ISOLATED_HOST = false;
 const REMOVE_STYLES_ON_COMPONENT_DESTROY_DEFAULT = true;
 const REMOVE_STYLES_ON_COMPONENT_DESTROY = new InjectionToken(typeof ngDevMode !== 'undefined' && ngDevMode ? 'RemoveStylesOnCompDestroy' : '', {
   factory: () => REMOVE_STYLES_ON_COMPONENT_DESTROY_DEFAULT
@@ -420,8 +502,8 @@ class DomRendererFactory2 {
         };
       }
     }
-    const renderer = this.getOrCreateRenderer(element, type);
     const isolatedStyleHost = getIsolatedShadowStyleHost(element);
+    const renderer = this.getOrCreateRenderer(element, type, isolatedStyleHost);
     if (renderer instanceof EmulatedEncapsulationDomRenderer2) {
       renderer.applyToHost(element, isolatedStyleHost);
     } else if (renderer instanceof NoneEncapsulationDomRenderer) {
@@ -429,9 +511,9 @@ class DomRendererFactory2 {
     }
     return renderer;
   }
-  getOrCreateRenderer(element, type) {
+  getOrCreateRenderer(element, type, isolatedStyleHost) {
     const rendererByCompId = this.rendererByCompId;
-    let renderer = rendererByCompId.get(type.id);
+    let renderer = isolatedStyleHost ? undefined : rendererByCompId.get(type.id);
     if (!renderer) {
       const doc = this.doc;
       const ngZone = this.ngZone;
@@ -446,12 +528,14 @@ class DomRendererFactory2 {
         case ViewEncapsulation.ShadowDom:
           return new ShadowDomRenderer(eventManager, element, type, doc, ngZone, this.nonce, tracingService, sharedStylesHost);
         case ViewEncapsulation.ExperimentalIsolatedShadowDom:
-          return new ShadowDomRenderer(eventManager, element, type, doc, ngZone, this.nonce, tracingService, sharedStylesHost, false);
+          return new ShadowDomRenderer(eventManager, element, type, doc, ngZone, this.nonce, tracingService, sharedStylesHost, USE_SHADOW_ROOT_AS_ISOLATED_HOST);
         default:
           renderer = new NoneEncapsulationDomRenderer(eventManager, sharedStylesHost, type, removeStylesOnCompDestroy, doc, ngZone, tracingService);
           break;
       }
-      rendererByCompId.set(type.id, renderer);
+      if (!isolatedStyleHost) {
+        rendererByCompId.set(type.id, renderer);
+      }
     }
     return renderer;
   }
@@ -712,7 +796,7 @@ class ShadowDomRenderer extends DefaultDomRenderer2 {
   sharedStylesHost;
   registerSharedStylesHost;
   shadowRoot;
-  constructor(eventManager, hostEl, component, doc, ngZone, nonce, tracingService, sharedStylesHost, registerSharedStylesHost = !!sharedStylesHost) {
+  constructor(eventManager, hostEl, component, doc, ngZone, nonce, tracingService, sharedStylesHost, registerSharedStylesHost = true) {
     super(eventManager, doc, ngZone, tracingService);
     this.hostEl = hostEl;
     this.sharedStylesHost = sharedStylesHost;
@@ -780,6 +864,7 @@ class NoneEncapsulationDomRenderer extends DefaultDomRenderer2 {
   removeStylesOnCompDestroy;
   styles;
   styleUrls;
+  hostNode;
   constructor(eventManager, sharedStylesHost, component, removeStylesOnCompDestroy, doc, ngZone, tracingService, compId) {
     super(eventManager, doc, ngZone, tracingService);
     this.sharedStylesHost = sharedStylesHost;
@@ -793,6 +878,7 @@ class NoneEncapsulationDomRenderer extends DefaultDomRenderer2 {
     this.styleUrls = component.getExternalStyles?.(compId);
   }
   applyStyles(hostNode) {
+    this.hostNode = hostNode;
     this.sharedStylesHost.addStyles(this.styles, this.styleUrls, hostNode);
   }
   destroy() {
@@ -800,7 +886,7 @@ class NoneEncapsulationDomRenderer extends DefaultDomRenderer2 {
       return;
     }
     if (_allLeavingAnimations.size === 0) {
-      this.sharedStylesHost.removeStyles(this.styles, this.styleUrls);
+      this.sharedStylesHost.removeStyles(this.styles, this.styleUrls, this.hostNode);
     }
   }
 }
