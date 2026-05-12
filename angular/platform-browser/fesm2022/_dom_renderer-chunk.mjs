@@ -801,9 +801,13 @@ class ShadowDomRenderer extends DefaultDomRenderer2 {
     this.hostEl = hostEl;
     this.sharedStylesHost = sharedStylesHost;
     this.registerSharedStylesHost = registerSharedStylesHost;
-    this.shadowRoot = hostEl.attachShadow({
+    const existingShadowRoot = this.registerSharedStylesHost ? null : hostEl.shadowRoot;
+    this.shadowRoot = existingShadowRoot ?? hostEl.attachShadow({
       mode: 'open'
     });
+    if (existingShadowRoot) {
+      existingShadowRoot.textContent = '';
+    }
     setIsolatedShadowStyleHost(this.shadowRoot, this.registerSharedStylesHost ? undefined : this.shadowRoot);
     if (this.registerSharedStylesHost) {
       this.sharedStylesHost.addHost(this.shadowRoot);

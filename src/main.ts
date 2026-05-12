@@ -23,6 +23,10 @@ import {
 })
 export class App {
   name = 'Angular';
+
+  constructor() {
+      console.log('App constructor');
+  }
 }
 
 bootstrapApplication(App);

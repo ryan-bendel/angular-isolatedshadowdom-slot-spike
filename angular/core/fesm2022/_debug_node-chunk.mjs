@@ -17476,7 +17476,7 @@ function recreateLView(importMeta, id, newDef, oldDef, lView) {
   ngDevMode && assertNotEqual(newDef, oldDef, 'Expected different component definition');
   const zone = lView[INJECTOR].get(NgZone, null);
   const recreate = () => {
-    if (oldDef.encapsulation === ViewEncapsulation.ShadowDom || oldDef.encapsulation === ViewEncapsulation.ExperimentalIsolatedShadowDom) {
+    if (oldDef.encapsulation === ViewEncapsulation.ShadowDom) {
       const newHost = host.cloneNode(false);
       host.replaceWith(newHost);
       host = newHost;
