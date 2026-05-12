@@ -1,4 +1,6 @@
 .angular
 dist
+!angular/core/third_party/@mcp-b/webmcp-types/dist/
+!angular/core/third_party/@mcp-b/webmcp-types/dist/*.d.ts
 node_modules
 .env
