@@ -10,7 +10,7 @@ var ts = require('typescript');
 var compilerCli = require('@angular/compiler-cli');
 var migrations = require('@angular/compiler-cli/private/migrations');
 require('node:path');
-var project_paths = require('./project_paths-D2V-Uh2L.cjs');
+var project_paths = require('./project_paths-LBcwW5BF.cjs');
 var compiler = require('@angular/compiler');
 
 function getMemberName(member) {
@@ -265,7 +265,9 @@ class TemplateReferenceVisitor extends compiler.TmplAstRecursiveVisitor {
     }
     visitForLoopBlock(block) {
         this.checkExpressionForReferencedFields(block, block.expression);
-        this.checkExpressionForReferencedFields(block, block.trackBy);
+        if (block.trackBy !== null) {
+            this.checkExpressionForReferencedFields(block, block.trackBy);
+        }
         super.visitForLoopBlock(block);
     }
     visitSwitchBlock(block) {
@@ -311,6 +313,16 @@ class TemplateReferenceVisitor extends compiler.TmplAstRecursiveVisitor {
     visitLetDeclaration(decl) {
         this.checkExpressionForReferencedFields(decl, decl.value);
     }
+    visitIcu(icu) {
+        for (const v of Object.values(icu.vars)) {
+            this.checkExpressionForReferencedFields(icu, v.value);
+        }
+        for (const p of Object.values(icu.placeholders)) {
+            if (p instanceof compiler.TmplAstBoundText) {
+                this.checkExpressionForReferencedFields(icu, p.value);
+            }
+        }
+    }
 }
 /**
  * Expression AST visitor that checks whether a given expression references
@@ -328,6 +340,7 @@ class TemplateExpressionReferenceVisitor extends compiler.RecursiveAstVisitor {
     activeTmplAstNode = null;
     detectedInputReferences = [];
     isInsideObjectShorthandExpression = false;
+    isInsideAssignment = false;
     insideConditionalExpressionsWithReads = [];
     constructor(typeChecker, templateTypeChecker, componentClass, knownFields, fieldNamesToConsiderForReferenceLookup) {
         super();
@@ -359,16 +372,19 @@ class TemplateExpressionReferenceVisitor extends compiler.RecursiveAstVisitor {
         }
     }
     visitPropertyRead(ast, context) {
-        this._inspectPropertyAccess(ast, false, context);
+        this._inspectPropertyAccess(ast, context);
         super.visitPropertyRead(ast, context);
     }
     visitSafePropertyRead(ast, context) {
-        this._inspectPropertyAccess(ast, false, context);
+        this._inspectPropertyAccess(ast, context);
         super.visitPropertyRead(ast, context);
     }
     visitBinary(ast, context) {
-        if (ast.operation === '=' && ast.left instanceof compiler.PropertyRead) {
-            this._inspectPropertyAccess(ast.left, true, [...context, ast, ast.left]);
+        if (ast.operation === '=') {
+            this.isInsideAssignment = true;
+            this.visit(ast.left, [...context, ast]);
+            this.isInsideAssignment = false;
+            this.visit(ast.right, [...context, ast]);
         }
         else {
             super.visitBinary(ast, context);
@@ -385,12 +401,12 @@ class TemplateExpressionReferenceVisitor extends compiler.RecursiveAstVisitor {
      * Inspects the property access and attempts to resolve whether they access
      * a known field. If so, the result is captured.
      */
-    _inspectPropertyAccess(ast, isAssignment, astPath) {
+    _inspectPropertyAccess(ast, astPath) {
         if (this.fieldNamesToConsiderForReferenceLookup !== null &&
             !this.fieldNamesToConsiderForReferenceLookup.has(ast.name)) {
             return;
         }
-        const isWrite = !!(isAssignment ||
+        const isWrite = !!(this.isInsideAssignment ||
             (this.activeTmplAstNode && isTwoWayBindingNode(this.activeTmplAstNode)));
         this._checkAccessViaTemplateTypeCheckBlock(ast, isWrite, astPath) ||
             this._checkAccessViaOwningComponentClassType(ast, isWrite, astPath);

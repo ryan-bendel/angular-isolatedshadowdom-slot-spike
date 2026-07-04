@@ -96,7 +96,7 @@ class EventManager {
     const plugins = this._plugins;
     plugin = plugins.find(plugin => plugin.supports(eventName));
     if (!plugin) {
-      throw new _RuntimeError(5101, (typeof ngDevMode === 'undefined' || ngDevMode) && `No event manager plugin found for event ${eventName}`);
+      throw new _RuntimeError(-5101, (typeof ngDevMode === 'undefined' || ngDevMode) && `No event manager plugin found for event ${eventName}`);
     }
     this._eventNameToPlugin.set(eventName, plugin);
     return plugin;
@@ -333,6 +333,9 @@ class SharedStylesHost {
     }
     this.removeHostUsage(hostNode);
   }
+  clearHostStyles(hostNode) {
+    this.removeHostUsage(hostNode);
+  }
   removeHostUsage(hostNode) {
     for (const usageByHost of [this.inlineByHost, this.externalByHost]) {
       const hostUsages = usageByHost.get(hostNode);
@@ -431,7 +434,8 @@ const COMPONENT_VARIABLE = '%COMP%';
 const HOST_ATTR = `_nghost-${COMPONENT_VARIABLE}`;
 const CONTENT_ATTR = `_ngcontent-${COMPONENT_VARIABLE}`;
 const ISOLATED_SHADOW_STYLE_HOST = Symbol('ngIsolatedShadowStyleHost');
-const USE_SHADOW_ROOT_AS_ISOLATED_HOST = false;
+const ISOLATED_SHADOW_STYLE_HOST_UPDATER = Symbol('ngIsolatedShadowStyleHostUpdater');
+const REGISTER_SHARED_STYLES_HOST = false;
 const REMOVE_STYLES_ON_COMPONENT_DESTROY_DEFAULT = true;
 const REMOVE_STYLES_ON_COMPONENT_DESTROY = new InjectionToken(typeof ngDevMode !== 'undefined' && ngDevMode ? 'RemoveStylesOnCompDestroy' : '', {
   factory: () => REMOVE_STYLES_ON_COMPONENT_DESTROY_DEFAULT
@@ -505,9 +509,20 @@ class DomRendererFactory2 {
     const isolatedStyleHost = getIsolatedShadowStyleHost(element);
     const renderer = this.getOrCreateRenderer(element, type, isolatedStyleHost);
     if (renderer instanceof EmulatedEncapsulationDomRenderer2) {
-      renderer.applyToHost(element, isolatedStyleHost);
+      if (isolatedStyleHost) {
+        renderer.applyToHostWithStyleHost(element, isolatedStyleHost);
+      } else {
+        renderer.applyToHost(element);
+      }
     } else if (renderer instanceof NoneEncapsulationDomRenderer) {
-      renderer.applyStyles(isolatedStyleHost);
+      if (isolatedStyleHost) {
+        renderer.applyStylesToHost(isolatedStyleHost);
+      } else {
+        renderer.applyStyles();
+      }
+    }
+    if (!isolatedStyleHost && renderer instanceof NoneEncapsulationDomRenderer) {
+      renderer.trackLateIsolatedStyleHost(element);
     }
     return renderer;
   }
@@ -528,7 +543,7 @@ class DomRendererFactory2 {
         case ViewEncapsulation.ShadowDom:
           return new ShadowDomRenderer(eventManager, element, type, doc, ngZone, this.nonce, tracingService, sharedStylesHost);
         case ViewEncapsulation.ExperimentalIsolatedShadowDom:
-          return new ShadowDomRenderer(eventManager, element, type, doc, ngZone, this.nonce, tracingService, sharedStylesHost, USE_SHADOW_ROOT_AS_ISOLATED_HOST);
+          return new ShadowDomRenderer(eventManager, element, type, doc, ngZone, this.nonce, tracingService, sharedStylesHost, REGISTER_SHARED_STYLES_HOST);
         default:
           renderer = new NoneEncapsulationDomRenderer(eventManager, sharedStylesHost, type, removeStylesOnCompDestroy, doc, ngZone, tracingService);
           break;
@@ -658,18 +673,19 @@ class DefaultDomRenderer2 {
   }
   appendChild(parent, newChild) {
     const targetParent = isTemplateNode(parent) ? parent.content : parent;
-    copyIsolatedShadowStyleHost(targetParent, newChild);
     targetParent.appendChild(newChild);
+    copyIsolatedShadowStyleHost(targetParent, newChild);
   }
   insertBefore(parent, newChild, refChild) {
     if (parent) {
       const targetParent = isTemplateNode(parent) ? parent.content : parent;
-      copyIsolatedShadowStyleHost(targetParent, newChild);
       targetParent.insertBefore(newChild, refChild);
+      copyIsolatedShadowStyleHost(targetParent, newChild);
     }
   }
   removeChild(_parent, oldChild) {
     oldChild.remove();
+    updateIsolatedShadowStyleHostInTree(oldChild, undefined);
   }
   selectRootElement(selectorOrNode, preserveContent) {
     let el = typeof selectorOrNode === 'string' ? this.doc.querySelector(selectorOrNode) : selectorOrNode;
@@ -747,7 +763,7 @@ class DefaultDomRenderer2 {
     if (typeof target === 'string') {
       target = _getDOM().getGlobalEventTarget(this.doc, target);
       if (!target) {
-        throw new _RuntimeError(5102, (typeof ngDevMode === 'undefined' || ngDevMode) && `Unsupported event target ${target} for event ${event}`);
+        throw new _RuntimeError(-5102, (typeof ngDevMode === 'undefined' || ngDevMode) && `Unsupported event target ${target} for event ${event}`);
       }
     }
     let wrappedCallback = this.decoratePreventDefault(callback);
@@ -786,10 +802,28 @@ function getIsolatedShadowStyleHost(node) {
 function setIsolatedShadowStyleHost(node, styleHost) {
   if (styleHost) {
     node[ISOLATED_SHADOW_STYLE_HOST] = styleHost;
+  } else {
+    delete node[ISOLATED_SHADOW_STYLE_HOST];
   }
 }
 function copyIsolatedShadowStyleHost(parent, child) {
-  setIsolatedShadowStyleHost(child, getIsolatedShadowStyleHost(parent));
+  const styleHost = getIsolatedShadowStyleHost(parent);
+  updateIsolatedShadowStyleHostInTree(child, child.getRootNode?.() === styleHost ? styleHost : undefined);
+}
+function updateIsolatedShadowStyleHostInTree(node, styleHost) {
+  updateIsolatedShadowStyleHost(node, styleHost);
+  node = node.firstChild;
+  while (node) {
+    updateIsolatedShadowStyleHostInTree(node, styleHost);
+    node = node.nextSibling;
+  }
+}
+function updateIsolatedShadowStyleHost(node, styleHost) {
+  setIsolatedShadowStyleHost(node, styleHost);
+  node?.[ISOLATED_SHADOW_STYLE_HOST_UPDATER]?.(styleHost);
+}
+function setIsolatedShadowStyleHostUpdater(node, updater) {
+  node[ISOLATED_SHADOW_STYLE_HOST_UPDATER] = updater;
 }
 class ShadowDomRenderer extends DefaultDomRenderer2 {
   hostEl;
@@ -806,11 +840,14 @@ class ShadowDomRenderer extends DefaultDomRenderer2 {
       mode: 'open'
     });
     if (existingShadowRoot) {
+      this.sharedStylesHost?.clearHostStyles(existingShadowRoot);
       existingShadowRoot.textContent = '';
     }
     setIsolatedShadowStyleHost(this.shadowRoot, this.registerSharedStylesHost ? undefined : this.shadowRoot);
     if (this.registerSharedStylesHost) {
       this.sharedStylesHost.addHost(this.shadowRoot);
+    } else {
+      this.sharedStylesHost?.removeHost(this.shadowRoot);
     }
     let styles = component.styles;
     if (ngDevMode) {
@@ -869,6 +906,7 @@ class NoneEncapsulationDomRenderer extends DefaultDomRenderer2 {
   styles;
   styleUrls;
   hostNode;
+  lateHostNode;
   constructor(eventManager, sharedStylesHost, component, removeStylesOnCompDestroy, doc, ngZone, tracingService, compId) {
     super(eventManager, doc, ngZone, tracingService);
     this.sharedStylesHost = sharedStylesHost;
@@ -881,9 +919,27 @@ class NoneEncapsulationDomRenderer extends DefaultDomRenderer2 {
     this.styles = compId ? shimStylesContent(compId, styles) : styles;
     this.styleUrls = component.getExternalStyles?.(compId);
   }
-  applyStyles(hostNode) {
+  applyStyles() {
+    this.hostNode = undefined;
+    this.sharedStylesHost.addStyles(this.styles, this.styleUrls);
+  }
+  applyStylesToHost(hostNode) {
     this.hostNode = hostNode;
     this.sharedStylesHost.addStyles(this.styles, this.styleUrls, hostNode);
+  }
+  trackLateIsolatedStyleHost(element) {
+    setIsolatedShadowStyleHostUpdater(element, newHostNode => {
+      if (this.lateHostNode === newHostNode) {
+        return;
+      }
+      if (this.lateHostNode) {
+        this.sharedStylesHost.removeStyles(this.styles, this.styleUrls, this.lateHostNode);
+      }
+      this.lateHostNode = newHostNode;
+      if (this.lateHostNode) {
+        this.sharedStylesHost.addStyles(this.styles, this.styleUrls, this.lateHostNode);
+      }
+    });
   }
   destroy() {
     if (!this.removeStylesOnCompDestroy) {
@@ -891,6 +947,9 @@ class NoneEncapsulationDomRenderer extends DefaultDomRenderer2 {
     }
     if (_allLeavingAnimations.size === 0) {
       this.sharedStylesHost.removeStyles(this.styles, this.styleUrls, this.hostNode);
+      if (this.lateHostNode && this.lateHostNode !== this.hostNode) {
+        this.sharedStylesHost.removeStyles(this.styles, this.styleUrls, this.lateHostNode);
+      }
     }
   }
 }
@@ -903,8 +962,12 @@ class EmulatedEncapsulationDomRenderer2 extends NoneEncapsulationDomRenderer {
     this.contentAttr = shimContentAttribute(compId);
     this.hostAttr = shimHostAttribute(compId);
   }
-  applyToHost(element, hostNode) {
-    this.applyStyles(hostNode);
+  applyToHost(element) {
+    this.applyStyles();
+    this.setAttribute(element, this.hostAttr, '');
+  }
+  applyToHostWithStyleHost(element, hostNode) {
+    this.applyStylesToHost(hostNode);
     this.setAttribute(element, this.hostAttr, '');
   }
   createElement(parent, name) {

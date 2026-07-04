@@ -14,6 +14,8 @@ class OutputEmitterRef {
   errorHandler = inject(ErrorHandler, {
     optional: true
   });
+  isEmitting = false;
+  hasNullListeners = false;
   destroyRef = inject(DestroyRef);
   constructor() {
     this.destroyRef.onDestroy(() => {
@@ -28,9 +30,14 @@ class OutputEmitterRef {
     (this.listeners ??= []).push(callback);
     return {
       unsubscribe: () => {
-        const idx = this.listeners?.indexOf(callback);
-        if (idx !== undefined && idx !== -1) {
-          this.listeners?.splice(idx, 1);
+        const index = this.listeners ? this.listeners.indexOf(callback) : -1;
+        if (index > -1) {
+          if (this.isEmitting) {
+            this.hasNullListeners = true;
+            this.listeners[index] = null;
+          } else {
+            this.listeners.splice(index, 1);
+          }
         }
       }
     };
@@ -43,18 +50,35 @@ class OutputEmitterRef {
     if (this.listeners === null) {
       return;
     }
+    this.isEmitting = true;
     const previousConsumer = setActiveConsumer(null);
     try {
       for (const listenerFn of this.listeners) {
         try {
-          listenerFn(value);
+          if (listenerFn !== null) {
+            listenerFn(value);
+          }
         } catch (err) {
           this.errorHandler?.handleError(err);
         }
       }
     } finally {
+      if (this.hasNullListeners) {
+        this.hasNullListeners = false;
+        this.listeners && removeNullValues(this.listeners);
+      }
       setActiveConsumer(previousConsumer);
+      this.isEmitting = false;
     }
+  }
+}
+function removeNullValues(arr) {
+  let i = arr.length - 1;
+  while (i > -1) {
+    if (arr[i] === null) {
+      arr.splice(i, 1);
+    }
+    i--;
   }
 }
 function getOutputDestroyRef(ref) {
@@ -100,21 +124,27 @@ const identityFn = v => v;
 function linkedSignal(optionsOrComputation, options) {
   if (typeof optionsOrComputation === 'function') {
     const getter = createLinkedSignal(optionsOrComputation, identityFn, options?.equal);
-    return upgradeLinkedSignalGetter(getter, options?.debugName);
+    return upgradeLinkedSignalGetter(getter, options?.debugName, options?.set);
   } else {
     const getter = createLinkedSignal(optionsOrComputation.source, optionsOrComputation.computation, optionsOrComputation.equal);
-    return upgradeLinkedSignalGetter(getter, optionsOrComputation.debugName);
+    return upgradeLinkedSignalGetter(getter, optionsOrComputation.debugName, optionsOrComputation.set);
   }
 }
-function upgradeLinkedSignalGetter(getter, debugName) {
+function upgradeLinkedSignalGetter(getter, debugName, customSet) {
   if (typeof ngDevMode !== 'undefined' && ngDevMode) {
     getter[SIGNAL].debugName = debugName;
     getter.toString = () => `[LinkedSignal${debugName ? ' (' + debugName + ')' : ''}: ${getter()}]`;
   }
   const node = getter[SIGNAL];
   const upgradedGetter = getter;
-  upgradedGetter.set = newValue => linkedSignalSetFn(node, newValue);
-  upgradedGetter.update = updateFn => linkedSignalUpdateFn(node, updateFn);
+  if (customSet !== undefined) {
+    const rawSet = newValue => linkedSignalSetFn(node, newValue);
+    upgradedGetter.set = newValue => customSet(newValue, rawSet);
+    upgradedGetter.update = updateFn => customSet(updateFn(untracked(getter)), rawSet);
+  } else {
+    upgradedGetter.set = newValue => linkedSignalSetFn(node, newValue);
+    upgradedGetter.update = updateFn => linkedSignalUpdateFn(node, updateFn);
+  }
   upgradedGetter.asReadonly = signalAsReadonlyFn.bind(getter);
   return upgradedGetter;
 }

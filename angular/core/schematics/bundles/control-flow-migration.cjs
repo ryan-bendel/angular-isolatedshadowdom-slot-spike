@@ -8,11 +8,11 @@
 
 var schematics = require('@angular-devkit/schematics');
 var path = require('path');
-var compiler_host = require('./compiler_host-CY14HvaP.cjs');
+var change_tracker = require('./change_tracker-BzE4pgz5.cjs');
 var compiler = require('@angular/compiler');
 var ts = require('typescript');
 var parse_html = require('./parse_html-C8eKA9px.cjs');
-var project_tsconfig_paths = require('./project_tsconfig_paths-DkkMibv-.cjs');
+var project_tsconfig_paths = require('./project_tsconfig_paths-BejwmdOG.cjs');
 require('@angular/compiler-cli/private/migrations');
 require('@angular-devkit/core');
 
@@ -1848,7 +1848,7 @@ function migrate(options) {
             if (options.path.startsWith('..')) {
                 throw new schematics.SchematicsException('Cannot run control flow migration outside of the current project.');
             }
-            pathToMigrate = compiler_host.normalizePath(path.join(basePath, options.path));
+            pathToMigrate = change_tracker.normalizePath(path.join(basePath, options.path));
             if (pathToMigrate.trim() !== '') {
                 allPaths.push(pathToMigrate);
             }
@@ -1864,11 +1864,11 @@ function migrate(options) {
         let errors = [];
         let sourceFilesCount = 0;
         for (const tsconfigPath of allPaths) {
-            const program = compiler_host.createMigrationProgram(tree, tsconfigPath, basePath);
+            const program = change_tracker.createMigrationProgram(tree, tsconfigPath, basePath);
             const sourceFiles = program
                 .getSourceFiles()
                 .filter((sourceFile) => (pathToMigrate ? sourceFile.fileName.startsWith(pathToMigrate) : true) &&
-                compiler_host.canMigrateFile(basePath, sourceFile, program));
+                change_tracker.canMigrateFile(basePath, sourceFile, program));
             const migrateErrors = runControlFlowMigration(tree, sourceFiles, basePath, options);
             errors = [...errors, ...migrateErrors];
             sourceFilesCount += sourceFiles.length;

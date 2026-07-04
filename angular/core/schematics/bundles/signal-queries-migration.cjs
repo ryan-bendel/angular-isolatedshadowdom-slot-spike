@@ -10,16 +10,16 @@ var migrations = require('@angular/compiler-cli/private/migrations');
 var ts = require('typescript');
 require('@angular/compiler-cli');
 require('node:path');
-var project_paths = require('./project_paths-D2V-Uh2L.cjs');
-var apply_import_manager = require('./apply_import_manager-CxA_YYgB.cjs');
-var migrate_ts_type_references = require('./migrate_ts_type_references-xRTTASnu.cjs');
+var project_paths = require('./project_paths-LBcwW5BF.cjs');
+var apply_import_manager = require('./apply_import_manager-BsCkDgPj.cjs');
+var migrate_ts_type_references = require('./migrate_ts_type_references-y9gtOKjH.cjs');
 var assert = require('assert');
-var index = require('./index-DcezkXLN.cjs');
+var index = require('./index-CYvBVnIF.cjs');
 var compiler = require('@angular/compiler');
 require('@angular-devkit/core');
 require('node:path/posix');
 require('@angular-devkit/schematics');
-require('./project_tsconfig_paths-DkkMibv-.cjs');
+require('./project_tsconfig_paths-BejwmdOG.cjs');
 require('./leading_space-BTPRV0wu.cjs');
 
 /**

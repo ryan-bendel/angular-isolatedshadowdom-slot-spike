@@ -6,20 +6,20 @@
  */
 'use strict';
 
-var migrate_ts_type_references = require('./migrate_ts_type_references-xRTTASnu.cjs');
+var migrate_ts_type_references = require('./migrate_ts_type_references-y9gtOKjH.cjs');
 var ts = require('typescript');
 require('@angular/compiler-cli');
 var migrations = require('@angular/compiler-cli/private/migrations');
 require('node:path');
-var project_paths = require('./project_paths-D2V-Uh2L.cjs');
-var index = require('./index-DcezkXLN.cjs');
+var project_paths = require('./project_paths-LBcwW5BF.cjs');
+var index = require('./index-CYvBVnIF.cjs');
 var assert = require('assert');
-var apply_import_manager = require('./apply_import_manager-CxA_YYgB.cjs');
+var apply_import_manager = require('./apply_import_manager-BsCkDgPj.cjs');
 require('@angular-devkit/core');
 require('node:path/posix');
 require('./leading_space-BTPRV0wu.cjs');
 require('@angular-devkit/schematics');
-require('./project_tsconfig_paths-DkkMibv-.cjs');
+require('./project_tsconfig_paths-BejwmdOG.cjs');
 require('@angular/compiler');
 
 /**
@@ -1208,14 +1208,7 @@ function pass7__migrateTemplateReferences(host, references) {
         if (!host.shouldMigrateReferencesToField(reference.target)) {
             continue;
         }
-        const parent = reference.from.readAstPath.at(-2);
-        let readEndPos;
-        if (reference.from.isWrite && parent) {
-            readEndPos = parent.sourceSpan.end;
-        }
-        else {
-            readEndPos = reference.from.read.sourceSpan.end;
-        }
+        const readEndPos = reference.from.read.sourceSpan.end;
         // Skip duplicate references. E.g. if a template is shared.
         const fileReferenceId = `${reference.from.templateFile.id}:${readEndPos}`;
         if (seenFileReferences.has(fileReferenceId)) {
@@ -1251,14 +1244,7 @@ function pass8__migrateHostBindings(host, references, info) {
         }
         const bindingField = reference.from.hostPropertyNode;
         const expressionOffset = bindingField.getStart() + 1; // account for quotes.
-        const parent = reference.from.readAstPath.at(-2);
-        let readEndPos;
-        if (reference.from.isWrite && parent) {
-            readEndPos = expressionOffset + parent.sourceSpan.end;
-        }
-        else {
-            readEndPos = expressionOffset + reference.from.read.sourceSpan.end;
-        }
+        const readEndPos = expressionOffset + reference.from.read.sourceSpan.end;
         // Skip duplicate references. Can happen if the host object is shared.
         if (seenReferences.get(bindingField)?.has(readEndPos)) {
             continue;

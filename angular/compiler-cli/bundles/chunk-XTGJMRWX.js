@@ -3,6 +3,10 @@
       const require = __cjsCompatRequire(import.meta.url);
     
 import {
+  AbsoluteSourceSpan,
+  IdentifierKind
+} from "./chunk-NRQWINXV.js";
+import {
   ActivePerfRecorder,
   CompilationMode,
   ComponentDecoratorHandler,
@@ -23,7 +27,6 @@ import {
   NgOriginalFile,
   NoopReferencesRegistry,
   OUTPUT_INITIALIZER_FNS,
-  PartialEvaluator,
   PerfCheckpoint,
   PerfEvent,
   PerfPhase,
@@ -52,7 +55,7 @@ import {
   tryParseInitializerApi,
   untagAllTsFiles,
   wrapTypeReference
-} from "./chunk-NMFQP4WW.js";
+} from "./chunk-ZC543DR4.js";
 import {
   AbsoluteModuleStrategy,
   AliasStrategy,
@@ -77,6 +80,7 @@ import {
   ModuleResolver,
   NoopImportRewriter,
   OptimizeFor,
+  PartialEvaluator,
   PrivateExportAliasingHost,
   R3SymbolsImportRewriter,
   Reference,
@@ -99,7 +103,7 @@ import {
   reflectObjectLiteral,
   relativePathBetween,
   toUnredirectedSourceFile
-} from "./chunk-IPSLA3OB.js";
+} from "./chunk-22FQMVNU.js";
 import {
   LogicalFileSystem,
   absoluteFromSourceFile,
@@ -271,8 +275,18 @@ var FunctionExtractor = class {
     const implementation = findImplementationOfFunction(this.exportDeclaration, this.typeChecker) ?? this.exportDeclaration;
     const type = this.typeChecker.getTypeAtLocation(this.exportDeclaration);
     const overloads = ts3.isConstructorDeclaration(this.exportDeclaration) ? constructorOverloads(this.exportDeclaration, this.typeChecker) : extractCallSignatures(this.name, this.typeChecker, type);
-    const jsdocsTags = extractJsDocTags(implementation);
-    const description = extractJsDocDescription(implementation);
+    const implementationJsDocTags = extractJsDocTags(implementation);
+    const implementationDescription = extractJsDocDescription(implementation);
+    const implementationRawComment = extractRawJsDoc(implementation);
+    const docsForFunctionEntry = extractFunctionEntryDocs(overloads, {
+      description: implementationDescription,
+      jsdocTags: implementationJsDocTags,
+      rawComment: implementationRawComment
+    }) ?? {
+      description: implementationDescription,
+      jsdocTags: implementationJsDocTags,
+      rawComment: implementationRawComment
+    };
     return {
       name: this.name,
       signatures: overloads,
@@ -280,21 +294,30 @@ var FunctionExtractor = class {
         params: extractAllParams(implementation.parameters, this.typeChecker),
         isNewType: ts3.isConstructSignatureDeclaration(implementation),
         returnType,
-        returnDescription: jsdocsTags.find((tag) => tag.name === "returns")?.comment,
+        returnDescription: implementationJsDocTags.find((tag) => tag.name === "returns")?.comment,
         generics: extractGenerics(implementation),
         name: this.name,
-        description,
+        description: implementationDescription,
         entryType: EntryType.Function,
-        jsdocTags: jsdocsTags,
-        rawComment: extractRawJsDoc(implementation)
+        jsdocTags: implementationJsDocTags,
+        rawComment: implementationRawComment
       },
       entryType: EntryType.Function,
-      description,
-      jsdocTags: jsdocsTags,
-      rawComment: extractRawJsDoc(implementation)
+      description: docsForFunctionEntry.description,
+      jsdocTags: docsForFunctionEntry.jsdocTags,
+      rawComment: docsForFunctionEntry.rawComment
     };
   }
 };
+function extractFunctionEntryDocs(overloads, implementationDocs) {
+  if (hasJSDocContent(implementationDocs)) {
+    return implementationDocs;
+  }
+  return overloads.find((overload) => hasJSDocContent(overload)) ?? null;
+}
+function hasJSDocContent(docs) {
+  return docs.description.trim() !== "" || docs.rawComment.trim() !== "" || docs.jsdocTags.length > 0;
+}
 function constructorOverloads(constructorDeclaration, typeChecker) {
   const classDeclaration = constructorDeclaration.parent;
   const constructorNode = classDeclaration.members.filter((member) => {
@@ -334,17 +357,21 @@ function filterSignatureDeclarations(signatures) {
   return result;
 }
 function extractCallSignatures(name, typeChecker, type) {
-  return filterSignatureDeclarations(type.getCallSignatures()).map(({ decl, signature }) => ({
-    name,
-    entryType: EntryType.Function,
-    description: extractJsDocDescription(decl),
-    generics: extractGenerics(decl),
-    isNewType: false,
-    jsdocTags: extractJsDocTags(decl),
-    params: extractAllParams(decl.parameters, typeChecker),
-    rawComment: extractRawJsDoc(decl),
-    returnType: extractReturnType(signature, typeChecker)
-  }));
+  return filterSignatureDeclarations(type.getCallSignatures()).map(({ decl, signature }) => {
+    const jsdocTags = extractJsDocTags(decl);
+    return {
+      name,
+      entryType: EntryType.Function,
+      description: extractJsDocDescription(decl),
+      generics: extractGenerics(decl),
+      isNewType: false,
+      jsdocTags,
+      params: extractAllParams(decl.parameters, typeChecker),
+      rawComment: extractRawJsDoc(decl),
+      returnType: extractReturnType(signature, typeChecker),
+      returnDescription: jsdocTags.find((tag) => tag.name === "returns")?.comment
+    };
+  });
 }
 function extractReturnType(signature, typeChecker) {
   if (signature?.declaration?.type && ts3.isTypePredicateNode(signature.declaration.type)) {
@@ -2034,7 +2061,7 @@ function checkForPrivateExports(entryPoint, checker, refGraph) {
     throw new Error(`Internal error: failed to get symbol for entrypoint`);
   }
   const exportedSymbols = checker.getExportsOfModule(moduleSymbol);
-  exportedSymbols.forEach((symbol) => {
+  for (let symbol of exportedSymbols) {
     if (symbol.flags & ts17.SymbolFlags.Alias) {
       symbol = checker.getAliasedSymbol(symbol);
     }
@@ -2042,12 +2069,12 @@ function checkForPrivateExports(entryPoint, checker, refGraph) {
     if (decl !== void 0) {
       topLevelExports.add(decl);
     }
-  });
+  }
   const checkedSet = /* @__PURE__ */ new Set();
-  topLevelExports.forEach((mainExport) => {
-    refGraph.transitiveReferencesOf(mainExport).forEach((transitiveReference) => {
+  for (const mainExport of topLevelExports) {
+    for (const transitiveReference of refGraph.transitiveReferencesOf(mainExport)) {
       if (checkedSet.has(transitiveReference)) {
-        return;
+        continue;
       }
       checkedSet.add(transitiveReference);
       if (!topLevelExports.has(transitiveReference)) {
@@ -2067,8 +2094,8 @@ function checkForPrivateExports(entryPoint, checker, refGraph) {
         };
         diagnostics.push(diagnostic);
       }
-    });
-  });
+    }
+  }
   return diagnostics;
 }
 function getPosOfDeclaration(decl) {
@@ -2132,50 +2159,25 @@ var ReferenceGraph = class {
       return null;
     } else {
       let candidatePath = null;
-      this.references.get(source).forEach((edge) => {
-        if (candidatePath !== null) {
-          return;
-        }
+      for (const edge of this.references.get(source)) {
         const partialPath = this.collectPathFrom(edge, target, seen);
         if (partialPath !== null) {
           candidatePath = [source, ...partialPath];
+          break;
         }
-      });
+      }
       return candidatePath;
     }
   }
   collectTransitiveReferences(set, decl) {
     if (this.references.has(decl)) {
-      this.references.get(decl).forEach((ref) => {
+      for (const ref of this.references.get(decl)) {
         if (!set.has(ref)) {
           set.add(ref);
           this.collectTransitiveReferences(set, ref);
         }
-      });
+      }
     }
-  }
-};
-
-// packages/compiler-cli/src/ngtsc/indexer/src/api.js
-var IdentifierKind;
-(function(IdentifierKind2) {
-  IdentifierKind2[IdentifierKind2["Property"] = 0] = "Property";
-  IdentifierKind2[IdentifierKind2["Method"] = 1] = "Method";
-  IdentifierKind2[IdentifierKind2["Element"] = 2] = "Element";
-  IdentifierKind2[IdentifierKind2["Template"] = 3] = "Template";
-  IdentifierKind2[IdentifierKind2["Attribute"] = 4] = "Attribute";
-  IdentifierKind2[IdentifierKind2["Reference"] = 5] = "Reference";
-  IdentifierKind2[IdentifierKind2["Variable"] = 6] = "Variable";
-  IdentifierKind2[IdentifierKind2["LetDeclaration"] = 7] = "LetDeclaration";
-  IdentifierKind2[IdentifierKind2["Component"] = 8] = "Component";
-  IdentifierKind2[IdentifierKind2["Directive"] = 9] = "Directive";
-})(IdentifierKind || (IdentifierKind = {}));
-var AbsoluteSourceSpan = class {
-  start;
-  end;
-  constructor(start, end) {
-    this.start = start;
-    this.end = end;
   }
 };
 
@@ -2189,9 +2191,6 @@ var IndexingContext = class {
     this.components.add(info);
   }
 };
-
-// packages/compiler-cli/src/ngtsc/indexer/src/transform.js
-import { ParseSourceFile } from "@angular/compiler";
 
 // packages/compiler-cli/src/ngtsc/indexer/src/template.js
 import { ASTWithSource, CombinedRecursiveAstVisitor, ImplicitReceiver, PropertyRead, ThisReceiver, TmplAstComponent, TmplAstDirective, TmplAstElement, TmplAstReference, TmplAstTemplate, TmplAstVariable, tmplAstVisitAll } from "@angular/compiler";
@@ -2464,30 +2463,20 @@ function generateAnalysis(context, adapter) {
   context.components.forEach(({ declaration, selector, boundTemplate, templateMeta }) => {
     const name = adapter.getName(declaration);
     const fileName = adapter.getFileName(declaration);
-    const usedComponents = /* @__PURE__ */ new Set();
-    const usedDirs = boundTemplate.getUsedDirectives();
-    usedDirs.forEach((dir) => {
-      if (dir.isComponent) {
-        usedComponents.add(dir.ref.node);
-      }
-    });
-    const componentFile = new ParseSourceFile(adapter.getContent(declaration), fileName);
-    let templateFile;
+    let templateFileUrl;
     if (templateMeta.isInline) {
-      templateFile = componentFile;
+      templateFileUrl = fileName;
     } else {
-      templateFile = templateMeta.file;
+      templateFileUrl = templateMeta.file.url;
     }
     const { identifiers, errors } = getTemplateIdentifiers(boundTemplate);
     analysis.set(declaration, {
       name,
       selector,
-      file: componentFile,
+      fileUrl: fileName,
       template: {
         identifiers,
-        usedComponents,
-        isInline: templateMeta.isInline,
-        file: templateFile
+        fileUrl: templateFileUrl
       },
       errors
     });
@@ -3003,6 +2992,9 @@ var InterpolatedSignalCheck = class extends TemplateCheckWithVisitor {
     if (node instanceof Interpolation) {
       return node.expressions.map((item) => item instanceof PrefixNot ? item.expression : item).filter((item) => item instanceof PropertyRead2).flatMap((item) => buildDiagnosticForSignal(ctx, item, component));
     } else if (node instanceof TmplAstElement2 && node.inputs.length > 0) {
+      if (ctx.templateTypeChecker.getForeignComponent(component, node) !== null) {
+        return [];
+      }
       const directivesOfElement = ctx.templateTypeChecker.getDirectivesOfNode(component, node);
       return node.inputs.flatMap((input) => checkBoundAttribute(ctx, component, directivesOfElement, input));
     } else if (node instanceof TmplAstTemplate2 && node.tagName === "ng-template") {
@@ -4800,9 +4792,6 @@ var NgCompiler = class _NgCompiler {
       },
       getFileName(node) {
         return node.getSourceFile().fileName;
-      },
-      getContent(node) {
-        return node.getSourceFile().getFullText();
       }
     };
     return generateAnalysis(context, adapter);
@@ -5416,7 +5405,6 @@ var DelegatingCompilerHost = class {
   resolveModuleNameLiterals;
   resolveTypeReferenceDirectiveReferences;
   // jsDocParsingMode is not a method like the other elements above
-  // TODO: ignore usage can be dropped once 5.2 support is dropped
   get jsDocParsingMode() {
     return this.delegate.jsDocParsingMode;
   }
@@ -5617,4 +5605,4 @@ export {
  * Use of this source code is governed by an MIT-style license that can be
  * found in the LICENSE file at https://angular.dev/license
  */
-//# sourceMappingURL=chunk-CNOSSWDI.js.map
+//# sourceMappingURL=chunk-XTGJMRWX.js.map

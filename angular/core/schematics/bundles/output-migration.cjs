@@ -10,14 +10,14 @@ var ts = require('typescript');
 require('@angular/compiler-cli');
 var migrations = require('@angular/compiler-cli/private/migrations');
 require('node:path');
-var project_paths = require('./project_paths-D2V-Uh2L.cjs');
+var project_paths = require('./project_paths-LBcwW5BF.cjs');
 var compiler = require('@angular/compiler');
-var apply_import_manager = require('./apply_import_manager-CxA_YYgB.cjs');
-var index = require('./index-DcezkXLN.cjs');
+var apply_import_manager = require('./apply_import_manager-BsCkDgPj.cjs');
+var index = require('./index-CYvBVnIF.cjs');
 require('@angular-devkit/core');
 require('node:path/posix');
 require('@angular-devkit/schematics');
-require('./project_tsconfig_paths-DkkMibv-.cjs');
+require('./project_tsconfig_paths-BejwmdOG.cjs');
 
 function isOutputDeclarationEligibleForMigration(node) {
     return (node.initializer !== undefined &&
@@ -511,7 +511,7 @@ function addCommentForEmptyEmit(node, info, checker, reflector, dtsReader, outpu
     if (!propertyDeclaration)
         return;
     const eventEmitterType = getEventEmitterArgumentType(propertyDeclaration);
-    if (!eventEmitterType)
+    if (!eventEmitterType || eventEmitterType === 'void')
         return;
     const id = getUniqueIdForProperty(info, propertyDeclaration);
     const file = project_paths.projectFile(node.getSourceFile(), info);

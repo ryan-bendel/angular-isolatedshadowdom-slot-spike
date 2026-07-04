@@ -13,7 +13,7 @@ var posixPath = require('node:path/posix');
 var migrations = require('@angular/compiler-cli/private/migrations');
 var ts = require('typescript');
 var path = require('node:path');
-var project_tsconfig_paths = require('./project_tsconfig_paths-DkkMibv-.cjs');
+var project_tsconfig_paths = require('./project_tsconfig_paths-BejwmdOG.cjs');
 
 function _interopNamespaceDefault(e) {
     var n = Object.create(null);
@@ -445,6 +445,9 @@ async function runMigrationInDevkit(config) {
     for (const tsconfigPath of tsconfigPaths) {
         config.beforeProgramCreation?.(tsconfigPath, exports.MigrationStage.Analysis);
         const info = migration.createProgram(tsconfigPath, fs);
+        // Devkit tree updates need workspace-relative paths. Keep `sortedRootDirs`
+        // intact for logical file IDs, but make `rootRelativePath` resolve from `/`.
+        info.projectRoot = compilerCli.absoluteFrom(info.program.getCurrentDirectory());
         modifyProgramInfoToEnsureNonOverlappingFiles(tsconfigPath, info, compilationUnitAssignments);
         config.afterProgramCreation?.(info, fs, exports.MigrationStage.Analysis);
         config.beforeUnitAnalysis?.(tsconfigPath);
@@ -466,6 +469,9 @@ async function runMigrationInDevkit(config) {
         for (const tsconfigPath of tsconfigPaths) {
             config.beforeProgramCreation?.(tsconfigPath, exports.MigrationStage.Migrate);
             const info = migration.createProgram(tsconfigPath, fs);
+            // Devkit tree updates need workspace-relative paths. Keep `sortedRootDirs`
+            // intact for logical file IDs, but make `rootRelativePath` resolve from `/`.
+            info.projectRoot = compilerCli.absoluteFrom(info.program.getCurrentDirectory());
             modifyProgramInfoToEnsureNonOverlappingFiles(tsconfigPath, info, compilationUnitAssignments);
             config.afterProgramCreation?.(info, fs, exports.MigrationStage.Migrate);
             const result = await migration.migrate(globalMeta, info);

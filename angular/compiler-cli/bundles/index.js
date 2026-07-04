@@ -17,7 +17,7 @@ import {
   isTsDiagnostic,
   performCompilation,
   readConfiguration
-} from "./chunk-RWEGGDRA.js";
+} from "./chunk-XGGHWRGT.js";
 import {
   ConsoleLogger,
   LogLevel
@@ -37,7 +37,11 @@ import {
   incrementalFromStateTicket,
   isDocEntryWithSourceInfo,
   resourceChangeTicket
-} from "./chunk-CNOSSWDI.js";
+} from "./chunk-XTGJMRWX.js";
+import {
+  AbsoluteSourceSpan,
+  IdentifierKind
+} from "./chunk-NRQWINXV.js";
 import {
   ActivePerfRecorder,
   InliningMode,
@@ -48,7 +52,7 @@ import {
   getDownlevelDecoratorsTransform,
   getInitializerApiJitTransform,
   isShim
-} from "./chunk-NMFQP4WW.js";
+} from "./chunk-ZC543DR4.js";
 import {
   CompletionKind,
   Environment,
@@ -71,7 +75,7 @@ import {
   isLocalCompilationDiagnostics,
   isNamedClassDeclaration,
   ngErrorCode
-} from "./chunk-IPSLA3OB.js";
+} from "./chunk-22FQMVNU.js";
 import "./chunk-ZUYMYKXC.js";
 import {
   InvalidFileSystem,
@@ -204,6 +208,7 @@ var NgTscPlugin = class {
 // packages/compiler-cli/index.ts
 setFileSystem(new NodeJSFileSystem());
 export {
+  AbsoluteSourceSpan,
   CompletionKind,
   ConsoleLogger,
   DEFAULT_ERROR_CODE,
@@ -216,6 +221,7 @@ export {
   ExpressionIdentifier,
   GLOBAL_DEFS_FOR_TERSER,
   GLOBAL_DEFS_FOR_TERSER_WITH_AOT,
+  IdentifierKind,
   ImportManager,
   InliningMode,
   InvalidFileSystem,

@@ -8,7 +8,7 @@
 
 var ts = require('typescript');
 var compilerCli = require('@angular/compiler-cli');
-var project_paths = require('./project_paths-D2V-Uh2L.cjs');
+var project_paths = require('./project_paths-LBcwW5BF.cjs');
 
 /**
  * Applies import manager changes, and writes them as replacements the

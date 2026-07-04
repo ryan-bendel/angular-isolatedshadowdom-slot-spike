@@ -5,9 +5,9 @@
  * Use of this source code is governed by an MIT-style license that can be
  * found in the LICENSE file at https://angular.dev/license
  */
-import { DirectiveMatcher, SchemaMetadata } from '@angular/compiler';
+import { DirectiveMatcher, SchemaMetadata, SelectorlessMatcher } from '@angular/compiler';
 import { Reference } from '../../imports';
-import { DirectiveMeta, HostDirectivesResolver, MetadataReader, PipeMeta } from '../../metadata';
+import { DirectiveMeta, ForeignComponentMeta, HostDirectivesResolver, MetadataReader, PipeMeta } from '../../metadata';
 import { ClassDeclaration } from '../../reflection';
 import { ComponentScopeReader } from './api';
 /**
@@ -19,6 +19,10 @@ export interface TypeCheckScope {
      * that are in the compilation scope of the declaring NgModule.
      */
     matcher: DirectiveMatcher<DirectiveMeta> | null;
+    /**
+     * A `SelectorlessMatcher` instance that contains matched foreign components.
+     */
+    foreignMatcher: SelectorlessMatcher<ForeignComponentMeta> | null;
     /**
      * All of the directives available in the compilation scope of the declaring NgModule.
      */

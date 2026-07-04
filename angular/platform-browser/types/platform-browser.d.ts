@@ -117,6 +117,7 @@ declare class Meta {
     private _getOrCreateElement;
     private _setMetaElementAttributes;
     private _parseSelector;
+    private _escapeSelectorValue;
     private _containsAttributes;
     private _getMetaKeyMap;
     static ɵfac: i0.ɵɵFactoryDeclaration<Meta, never>;
@@ -320,6 +321,7 @@ declare class SharedStylesHost implements _SharedStylesHost, OnDestroy {
     ngOnDestroy(): void;
     addHost(hostNode: Node): void;
     removeHost(hostNode: Node): void;
+    clearHostStyles(hostNode: Node): void;
     private removeHostUsage;
     private addElement;
     static ɵfac: i0.ɵɵFactoryDeclaration<SharedStylesHost, [null, null, { optional: true; }, null]>;
@@ -750,8 +752,8 @@ declare const enum RuntimeErrorCode {
     UNSUPPORTED_ZONEJS_INSTANCE = -5000,
     HYDRATION_CONFLICTING_FEATURES = 5001,
     BROWSER_MODULE_ALREADY_LOADED = 5100,
-    NO_PLUGIN_FOR_EVENT = 5101,
-    UNSUPPORTED_EVENT_TARGET = 5102,
+    NO_PLUGIN_FOR_EVENT = -5101,
+    UNSUPPORTED_EVENT_TARGET = -5102,
     TESTABILITY_NOT_FOUND = 5103,
     ROOT_NODE_NOT_FOUND = -5104,
     UNEXPECTED_SYNTHETIC_PROPERTY = 5105,

@@ -8,14 +8,14 @@
 
 require('@angular-devkit/core');
 require('node:path/posix');
-var project_paths = require('./project_paths-D2V-Uh2L.cjs');
+var project_paths = require('./project_paths-LBcwW5BF.cjs');
 var ts = require('typescript');
 var compilerCli = require('@angular/compiler-cli');
 var migrations = require('@angular/compiler-cli/private/migrations');
 require('node:path');
-var apply_import_manager = require('./apply_import_manager-CxA_YYgB.cjs');
+var apply_import_manager = require('./apply_import_manager-BsCkDgPj.cjs');
 require('@angular-devkit/schematics');
-require('./project_tsconfig_paths-DkkMibv-.cjs');
+require('./project_tsconfig_paths-BejwmdOG.cjs');
 
 /** Migration that cleans up unused imports from a project. */
 class UnusedImportsMigration extends project_paths.TsurgeFunnelMigration {

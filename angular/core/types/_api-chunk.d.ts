@@ -25,6 +25,8 @@ declare class OutputEmitterRef<T> implements OutputRef<T> {
     private destroyed;
     private listeners;
     private errorHandler;
+    private isEmitting;
+    private hasNullListeners;
     constructor();
     subscribe(callback: (value: T) => void): OutputRefSubscription;
     /** Emits a new value to the output. */
@@ -108,7 +110,11 @@ declare class ResourceParamsStatus extends Error {
     /** Status code that transitions the resource to `loading` status. */
     static readonly LOADING: ResourceParamsStatus;
 }
-/** Context received by a resource's `params` or `request` function. */
+/**
+ * Context received by a resource's `params` or `request` function.
+ *
+ * @see [Chaining resources](guide/signals/resource#chaining-resources)
+ */
 interface ResourceParamsContext {
     /**
      * Chains the current params off of the value of another resource, returning the value

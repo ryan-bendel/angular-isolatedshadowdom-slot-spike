@@ -4,7 +4,7 @@
  * License: MIT
  */
 
-import { InjectionToken, Type, ValueProvider, ExistingProvider, FactoryProvider, ConstructorProvider, StaticClassProvider, ClassProvider, EnvironmentProviders, Injector, ProviderToken, InjectOptions, Provider, ProcessProvidersFunction, ModuleWithProviders, DestroyRef, InternalInjectFlags, WritableSignal, OutputRef, StaticProvider } from './_chrome_dev_tools_performance-chunk.js';
+import { InjectionToken, Type, AbstractType, ValueProvider, ExistingProvider, FactoryProvider, ConstructorProvider, StaticClassProvider, ClassProvider, EnvironmentProviders, Injector, ProviderToken, InjectOptions, Provider, ProcessProvidersFunction, ModuleWithProviders, DestroyRef, InternalInjectFlags, WritableSignal, OutputRef, StaticProvider } from './_chrome_dev_tools_performance-chunk.js';
 import { Observable, Subject, Subscription } from 'rxjs';
 import './_event_dispatcher-chunk.js';
 import { ReactiveNode } from './_formatter-chunk.js';
@@ -95,7 +95,7 @@ interface AnimationLViewData {
 /**
  * Function that returns the class or class list binded to the animate instruction
  */
-type AnimationClassBindingFn = () => string | string[];
+type AnimationClassBindingFn = () => string | string[] | undefined | null;
 
 /** Actions that are supported by the tracing framework. */
 declare enum TracingAction {
@@ -1080,6 +1080,58 @@ declare const enum AttributeMarker {
     I18n = 6
 }
 
+/** Symbol used to store and retrieve the render function for a foreign component. */
+declare const RENDER: unique symbol;
+/** Symbol used to store and retrieve the disposal registration function for a foreign component. */
+declare const ON_DESTROY: unique symbol;
+/** Symbol used to store and retrieve the content adapter function for a foreign component. */
+declare const CONTENT_ADAPTER: unique symbol;
+/** Symbol used to store and retrieve the context retrieval function for a foreign component. */
+declare const GET_CONTEXT: unique symbol;
+/**
+ * A function used to render a foreign component in an Angular template.
+ *
+ * The function accepts the component's properties and optional context. It should return an array
+ * of nodes rendered and owned by the foreign component. It may also return a callback to perform
+ * any necessary cleanup when the component is destroyed.
+ *
+ * @template TProps The properties of the foreign component.
+ * @template TContext The context passed to the foreign component.
+ */
+type ForeignRenderFn<TProps, TContext> = (props: TProps, context?: TContext) => [Node[], VoidFunction?];
+/**
+ * A function that captures the runtime context of a foreign component.
+ *
+ * @template TContext The captured context type.
+ */
+type ForeignGetContextFn<TContext> = () => TContext;
+/**
+ * A function that allows a foreign component to register a destroy callback.
+ *
+ * Angular will invoke this function during the creation phase of projected content
+ * to provide a cleanup callback. The foreign component is responsible for calling
+ * this callback when the container slot is removed or when the foreign component itself
+ * is destroyed. This triggers the destruction and lifecycle cleanup of the nested Angular views.
+ */
+type ForeignOnDestroyFn = (destroy: VoidFunction) => void;
+/**
+ * A function that adapts an Angular content producer callback into a compatible representation for
+ * the foreign component.
+ */
+type ForeignContentAdapterFn = (producer: () => Node[]) => any;
+/**
+ * Represents a component from another framework that Angular can import and render.
+ *
+ * @template TProps The properties of the foreign component.
+ * @template TContext The context passed to the foreign component.
+ */
+interface ForeignComponent<TProps = {}, TContext = unknown> {
+    readonly [RENDER]: ForeignRenderFn<TProps, TContext>;
+    readonly [ON_DESTROY]: ForeignOnDestroyFn;
+    readonly [CONTENT_ADAPTER]: ForeignContentAdapterFn;
+    readonly [GET_CONTEXT]?: ForeignGetContextFn<TContext>;
+}
+
 /**
  * Expresses a single CSS Selector.
  *
@@ -1273,8 +1325,9 @@ type TAttributes = (string | AttributeMarker | CssSelector)[];
  * - Attribute arrays.
  * - Local definition arrays.
  * - Translated messages (i18n).
+ * - Foreign components.
  */
-type TConstants = (TAttributes | string)[];
+type TConstants = (TAttributes | string | ForeignComponent<any, any>)[];
 /**
  * Factory function that returns an array of consts. Consts can be represented as a function in
  * case any additional statements are required to define consts in the list. An example is i18n
@@ -1445,6 +1498,10 @@ interface TNode {
      *   `TNodeType.ICUContainer`: `TIcu`
      */
     value: any;
+    /**
+     * The namespace associated with this node.
+     */
+    namespace: string | null;
     /**
      * Attributes associated with an element. We need to store attributes to support various
      * use-cases (attribute injection, content projection with selectors, directives matching).
@@ -1888,7 +1945,7 @@ type HostDirectiveOutputs = Record<string, (number | string)[]>;
  * }
  * ```
  */
-type DirectiveIndexMap = Map<Type<unknown>, number | [directiveIndex: number, hostDirectivesStart: number, hostDirectivesEnd: number]>;
+type DirectiveIndexMap = Map<Type<unknown> | AbstractType<unknown>, number | [directiveIndex: number, hostDirectivesStart: number, hostDirectivesEnd: number]>;
 /**
  * Type representing a set of TNodes that can have local refs (`#foo`) placed on them.
  */
@@ -1998,7 +2055,12 @@ declare const enum LContainerFlags {
      *
      * This flag, once set, is never unset for the `LContainer`.
      */
-    HasTransplantedViews = 2
+    HasTransplantedViews = 2,
+    /**
+     * Flag to signify that this `LContainer` is logical-only and its views should not be added
+     * to or removed from the rendering tree by the platform renderer.
+     */
+    LogicalOnly = 4
 }
 
 /**
@@ -2569,7 +2631,7 @@ interface DirectiveDef<T> {
      */
     readonly hostAttrs: TAttributes | null;
     /** Token representing the directive. Used by DI. */
-    readonly type: Type<T>;
+    readonly type: Type<T> | AbstractType<T>;
     /** Function that resolves `providers` and publishes them into the DI system. */
     providersResolver: ProvidersResolver | null;
     /** Function that resolves `viewProviders` and publishes them into the DI system. */
@@ -2754,7 +2816,7 @@ interface ComponentDef<T> extends DirectiveDef<T> {
  */
 interface PipeDef<T> {
     /** Token representing the pipe. */
-    type: Type<T>;
+    type: Type<T> | AbstractType<T>;
     /**
      * Pipe name.
      *
@@ -3103,7 +3165,8 @@ declare enum SecurityContext {
     STYLE = 2,
     SCRIPT = 3,
     URL = 4,
-    RESOURCE_URL = 5
+    RESOURCE_URL = 5,
+    ATTRIBUTE_NO_BINDING = 6
 }
 
 /**
@@ -4460,7 +4523,11 @@ declare const enum TViewType {
      * `TView` associated with a template. Such as `*ngIf`, `<ng-template>` etc... A `Component`
      * can have zero or more `Embedded` `TView`s.
      */
-    Embedded = 2
+    Embedded = 2,
+    /**
+     * Foreign `TView` associated with a range of nodes between `head` and `tail` comment nodes.
+     */
+    Foreign = 3
 }
 /**
  * The static data for an LView (shared between all templates of a
@@ -4809,8 +4876,7 @@ declare enum ChangeDetectionStrategy {
      */
     Eager = 1,
     /**
-     * Use the default `CheckAlways` strategy, in which change detection is automatic until
-     * explicitly deactivated.
+     * This value is equivalent to setting `Eager` and is due to be removed.
      * @deprecated Use `Eager` instead.
      */
     Default = 1

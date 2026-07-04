@@ -8,7 +8,7 @@
 
 require('@angular-devkit/core');
 require('node:path/posix');
-var project_paths = require('./project_paths-D2V-Uh2L.cjs');
+var project_paths = require('./project_paths-LBcwW5BF.cjs');
 var compiler = require('@angular/compiler');
 var ts = require('typescript');
 var ng_component_template = require('./ng_component_template-DPAF1aEA.cjs');
@@ -18,9 +18,10 @@ require('@angular/compiler-cli/private/migrations');
 require('node:path');
 var property_name = require('./property_name-BCpALNpZ.cjs');
 require('@angular-devkit/schematics');
-require('./project_tsconfig_paths-DkkMibv-.cjs');
+require('./project_tsconfig_paths-BejwmdOG.cjs');
 require('./imports-CKV-ITqD.cjs');
 
+const SAFE_NAVIGATION_MIGRATION_FN = '$safeNavigationMigration';
 /**
  * This migration wraps optional chaining expressions in Angular templates with a call to the
  * `$safeNavigationMigration()` magic function. This function doesn't exist at runtime, but is
@@ -268,6 +269,10 @@ class ExpressionMigrator extends compiler.RecursiveAstVisitor {
     // Function calls — arguments are always null-sensitive
     // ---------------------------------------------------------------------------
     visitCall(ast, nullSensitive) {
+        if (isSafeNavigationMigrationCall(ast)) {
+            this.visit(ast.receiver, false);
+            return;
+        }
         if (nullSensitive && this.hasSafeReceiver(ast.receiver)) {
             this.addReplacement(ast);
         }
@@ -285,7 +290,11 @@ class ExpressionMigrator extends compiler.RecursiveAstVisitor {
     // Binary operators
     // ---------------------------------------------------------------------------
     visitBinary(ast, nullSensitive) {
-        if (ast.operation === '||' || ast.operation === '&&' || ast.operation === '??') {
+        if (ast.operation === '||' ||
+            ast.operation === '&&' ||
+            ast.operation === '??' ||
+            ast.operation === '==' ||
+            ast.operation === '!=') {
             // These operators normalise null and undefined (both produce the same result),
             // so the operands are not null-sensitive.
             this.visit(ast.left, false);
@@ -370,6 +379,12 @@ function isNullishLiteralAST(ast) {
     const innerAst = ast instanceof compiler.ASTWithSource ? ast.ast : ast;
     return (innerAst instanceof compiler.LiteralPrimitive &&
         (innerAst.value === null || innerAst.value === undefined));
+}
+function isSafeNavigationMigrationCall(ast) {
+    const innerAst = ast instanceof compiler.ASTWithSource ? ast.ast : ast;
+    return (innerAst instanceof compiler.Call &&
+        innerAst.receiver instanceof compiler.PropertyRead &&
+        innerAst.receiver.name === SAFE_NAVIGATION_MIGRATION_FN);
 }
 /** Returns true if the AST node is a non-null, non-undefined primitive literal. */
 function isNonNullishLiteralAST(ast) {
@@ -519,7 +534,7 @@ class TmplVisitor extends compiler.TmplAstRecursiveVisitor {
     }
     visitForLoopBlock(block) {
         block.expression.visit(this.exprMigrator, false);
-        block.trackBy.visit(this.exprMigrator, false);
+        block.trackBy?.visit(this.exprMigrator, false);
         super.visitForLoopBlock(block);
     }
     visitLetDeclaration(decl) {

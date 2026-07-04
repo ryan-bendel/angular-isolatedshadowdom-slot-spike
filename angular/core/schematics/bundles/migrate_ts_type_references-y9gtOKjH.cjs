@@ -9,8 +9,8 @@
 var assert = require('assert');
 var ts = require('typescript');
 var migrations = require('@angular/compiler-cli/private/migrations');
-var index = require('./index-DcezkXLN.cjs');
-var project_paths = require('./project_paths-D2V-Uh2L.cjs');
+var index = require('./index-CYvBVnIF.cjs');
+var project_paths = require('./project_paths-LBcwW5BF.cjs');
 var leading_space = require('./leading_space-BTPRV0wu.cjs');
 require('@angular/compiler-cli');
 require('node:path');

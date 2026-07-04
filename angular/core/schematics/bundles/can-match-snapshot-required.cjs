@@ -8,13 +8,13 @@
 
 require('@angular-devkit/core');
 require('node:path/posix');
-var project_paths = require('./project_paths-D2V-Uh2L.cjs');
+var project_paths = require('./project_paths-LBcwW5BF.cjs');
 var ts = require('typescript');
 require('@angular/compiler-cli');
 require('@angular/compiler-cli/private/migrations');
 require('node:path');
 require('@angular-devkit/schematics');
-require('./project_tsconfig_paths-DkkMibv-.cjs');
+require('./project_tsconfig_paths-BejwmdOG.cjs');
 
 class CanMatchSnapshotRequiredMigration extends project_paths.TsurgeFunnelMigration {
     async analyze(info) {

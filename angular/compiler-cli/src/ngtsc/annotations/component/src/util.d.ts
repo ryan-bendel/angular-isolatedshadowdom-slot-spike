@@ -10,6 +10,7 @@ import ts from 'typescript';
 import { Reference } from '../../../imports';
 import { ForeignFunctionResolver, ResolvedValue } from '../../../partial_evaluator';
 import { ClassDeclaration } from '../../../reflection';
+import { ForeignComponentMeta } from './metadata';
 /**
  * Collect the animation names from the static evaluation result.
  * @param value the static evaluation result of the animations
@@ -21,5 +22,9 @@ export declare function isLegacyAngularAnimationsReference(reference: Reference,
 export declare const legacyAnimationTriggerResolver: ForeignFunctionResolver;
 export declare function validateAndFlattenComponentImports(imports: ResolvedValue, expr: ts.Expression, isDeferred: boolean): {
     imports: Reference<ClassDeclaration>[];
+    diagnostics: ts.Diagnostic[];
+};
+export declare function validateAndFlattenForeignImports(imports: ResolvedValue, expr: ts.Expression): {
+    foreignImports: ForeignComponentMeta[];
     diagnostics: ts.Diagnostic[];
 };

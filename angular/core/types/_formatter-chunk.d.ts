@@ -34,12 +34,18 @@ declare const REACTIVE_NODE: ReactiveNode;
 interface ReactiveLink {
     producer: ReactiveNode;
     consumer: ReactiveNode;
+    /**
+     * Stores the epoch that holds when this link was observed, allowing subsequent observations of the same producer to
+     * realize that there's an existing link, avoiding the creation of a new, redundant link. A value of `null` indicates
+     * that the link cannot be assumed to be valid based on the epoch counter.
+     */
+    knownValidAtEpoch: Version | null;
     lastReadVersion: number;
     prevConsumer: ReactiveLink | undefined;
     nextConsumer: ReactiveLink | undefined;
     nextProducer: ReactiveLink | undefined;
 }
-type ReactiveNodeKind = 'signal' | 'computed' | 'effect' | 'template' | 'linkedSignal' | 'afterRenderEffectPhase' | 'unknown';
+type ReactiveNodeKind = 'signal' | 'computed' | 'effect' | 'template' | 'linkedSignal' | 'afterRenderEffectPhase' | 'childSignalProp' | 'unknown';
 /**
  * A producer and/or consumer which participates in the reactive graph.
  *

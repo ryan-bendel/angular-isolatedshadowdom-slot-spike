@@ -822,7 +822,8 @@ ${errors}`);
       relativeTemplatePath: null,
       i18nUseExternalIds: false,
       declarations,
-      hasDirectiveDependencies: !baseMeta.isStandalone || hasDirectiveDependencies
+      hasDirectiveDependencies: !baseMeta.isStandalone || hasDirectiveDependencies,
+      foreignImports: null
     };
   }
   /**
@@ -1401,4 +1402,4 @@ export {
  * Use of this source code is governed by an MIT-style license that can be
  * found in the LICENSE file at https://angular.dev/license
  */
-//# sourceMappingURL=chunk-ZURNPVTB.js.map
+//# sourceMappingURL=chunk-DYU4R5IG.js.map
